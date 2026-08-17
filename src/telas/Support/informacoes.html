@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informações - Guardiã</title>
+
+    <link rel="stylesheet" href="informacoes.css">
+
+    <!-- Ícones Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts: Lora para títulos e Inter para texto -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,500;0,600;0,700;1,600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+
+    <div class="app-screen" id="app-screen">
+
+        <!-- TELA 1: FEED DE INFORMAÇÕES -->
+        <div id="feed-view" class="view-container active">
+            <!-- Cabeçalho -->
+            <header class="app-header">
+                <h1 class="page-title">Informações</h1>
+                <span class="official-badge">Oficial Guardiã</span>
+            </header>
+
+            <!-- Conteúdo Rolável -->
+            <main class="feed-container">
+
+                <!-- Card 1: Saúde Mental -->
+                <article class="info-card" data-post-id="1">
+                    <div class="card-header">
+                        <div class="card-header-meta">
+                            <span class="badge badge-pink">Saúde Mental</span>
+                            <span class="card-time">Hoje, 08:00</span>
+                        </div>
+                    </div>
+                    <h2 class="card-title">Cuidar de você é o primeiro passo</h2>
+                    <p class="card-excerpt">
+                        Situações de violência e abuso deixam marcas emocionais profundas. Buscar apoio psicológico não
+                        é fraqueza — é...
+                    </p>
+                    <div class="card-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1544027993-37dbfe43562a?auto=format&fit=crop&w=800&q=80"
+                            alt="Mental Health Matters">
+                        <i class="fa-solid fa-heart heart-pop"></i>
+                    </div>
+                    <div class="card-footer">
+                        <div class="card-stats">
+                            <button class="stat-btn like-btn" aria-label="Curtir">
+                                <i class="fa-regular fa-heart"></i>
+                                <span class="like-count">218</span>
+                            </button>
+                            <span class="stat-item comment-trigger">
+                                <i class="fa-regular fa-comment"></i>
+                                <span class="comment-count">1</span>
+                            </span>
+                        </div>
+                        <a href="#" class="read-more">Ler mais <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+                </article>
+
+                <!-- Card 2: Rede de Apoio -->
+                <article class="info-card" data-post-id="2">
+                    <div class="card-header">
+                        <div class="card-header-meta">
+                            <span class="badge badge-pink">Rede de Apoio</span>
+                            <span class="card-time">Hoje, 07:30</span>
+                        </div>
+                    </div>
+                    <h2 class="card-title">Você não está sozinha — juntas somos mais fortes</h2>
+                    <p class="card-excerpt">
+                        Construir uma rede de apoio de pessoas de confiança é uma das estratégias mais importantes para
+                        se proteger.
+                    </p>
+                    <div class="card-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80"
+                            alt="Rede de Apoio">
+                        <i class="fa-solid fa-heart heart-pop"></i>
+                    </div>
+                    <div class="card-footer">
+                        <div class="card-stats">
+                            <button class="stat-btn like-btn" aria-label="Curtir">
+                                <i class="fa-regular fa-heart"></i>
+                                <span class="like-count">174</span>
+                            </button>
+                            <span class="stat-item comment-trigger">
+                                <i class="fa-regular fa-comment"></i>
+                                <span class="comment-count">2</span>
+                            </span>
+                        </div>
+                        <a href="#" class="read-more">Ler mais <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+                </article>
+
+                <!-- Card 3: Direitos -->
+                <article class="info-card" data-post-id="3">
+                    <div class="card-header">
+                        <div class="card-header-meta">
+                            <span class="badge badge-blue">Direitos</span>
+                            <span class="card-time">11 ago, 11:00</span>
+                        </div>
+                    </div>
+                    <h2 class="card-title">A Justiça está do seu lado</h2>
+                    <p class="card-excerpt">
+                        A legislação brasileira é uma das mais avançadas do mundo na proteção da mulher. Além da Lei
+                        Maria da...
+                    </p>
+                    <div class="card-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&q=80"
+                            alt="Justiça">
+                        <i class="fa-solid fa-heart heart-pop"></i>
+                    </div>
+                    <div class="card-footer">
+                        <div class="card-stats">
+                            <button class="stat-btn like-btn" aria-label="Curtir">
+                                <i class="fa-regular fa-heart"></i>
+                                <span class="like-count">131</span>
+                            </button>
+                            <span class="stat-item comment-trigger">
+                                <i class="fa-regular fa-comment"></i>
+                                <span class="comment-count">0</span>
+                            </span>
+                        </div>
+                        <a href="#" class="read-more">Ler mais <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+                </article>
+
+                <!-- Card 4: Conscientização -->
+                <article class="info-card" data-post-id="4">
+                    <div class="card-header">
+                        <div class="card-header-meta">
+                            <span class="badge badge-pink">Conscientização</span>
+                            <span class="card-time">Hoje, 10:00</span>
+                        </div>
+                    </div>
+                    <h2 class="card-title">Reconhecendo sinais de violência doméstica</h2>
+                    <p class="card-excerpt">
+                        A violência doméstica nem sempre deixa marcas visíveis. Aprenda a identificar comportamentos
+                        abusivos...
+                    </p>
+                    <div class="card-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80"
+                            alt="Conscientização">
+                        <i class="fa-solid fa-heart heart-pop"></i>
+                    </div>
+                    <div class="card-footer">
+                        <div class="card-stats">
+                            <button class="stat-btn like-btn" aria-label="Curtir">
+                                <i class="fa-regular fa-heart"></i>
+                                <span class="like-count">95</span>
+                            </button>
+                            <span class="stat-item comment-trigger">
+                                <i class="fa-regular fa-comment"></i>
+                                <span class="comment-count">3</span>
+                            </span>
+                        </div>
+                        <a href="#" class="read-more">Ler mais <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+                </article>
+
+            </main>
+        </div>
+
+        <!-- TELA 2: DETALHES DA PUBLICAÇÃO E COMENTÁRIOS -->
+        <div id="detail-view" class="view-container">
+            <!-- Cabeçalho de Detalhes -->
+            <header class="detail-header">
+                <button id="back-btn" class="back-btn" aria-label="Voltar">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <h1 class="detail-header-title">Publicação</h1>
+            </header>
+
+            <!-- Conteúdo Rolável da Publicação -->
+            <main class="detail-container">
+                <!-- Meta Info (Categoria e Data) -->
+                <div class="detail-meta">
+                    <span id="detail-badge" class="badge badge-pink">Saúde Mental</span>
+                    <span id="detail-time" class="card-time">Hoje, 08:00</span>
+                </div>
+
+                <!-- Título -->
+                <h2 id="detail-title" class="detail-title">Cuidar de você é o primeiro passo</h2>
+
+                <!-- Autor -->
+                <div class="author-row">
+                    <div class="author-avatar">G</div>
+                    <div class="author-info">
+                        <span class="author-name">Equipe Guardiã</span>
+                        <span class="author-role">Publicação oficial</span>
+                    </div>
+                </div>
+
+                <div class="detail-divider"></div>
+
+                <!-- Corpo do Texto -->
+                <div id="detail-body" class="detail-body">
+                    <!-- Preenchido via JavaScript -->
+                </div>
+
+                <!-- Imagem em Destaque -->
+                <div class="detail-image-wrapper">
+                    <img id="detail-image" src="" alt="Imagem da publicação">
+                    <i class="fa-solid fa-heart heart-pop"></i>
+                </div>
+
+                <!-- Estatísticas e Curtidas -->
+                <div class="detail-stats-row">
+                    <button id="detail-like-btn" class="stat-btn like-btn" aria-label="Curtir">
+                        <i class="fa-regular fa-heart"></i>
+                        <span id="detail-like-count">218</span>
+                    </button>
+                    <span class="stat-item">
+                        <i class="fa-regular fa-comment"></i>
+                        <span id="detail-comment-count">1</span>
+                    </span>
+                </div>
+
+                <!-- Seção de Comentários -->
+                <section class="comments-section">
+                    <h3 class="comments-heading">COMENTÁRIOS</h3>
+
+                    <!-- Lista de Comentários -->
+                    <div id="comments-list" class="comments-list">
+                        <!-- Preenchido via JavaScript -->
+                    </div>
+
+                    <!-- Input para Novo Comentário -->
+                    <div class="add-comment-box">
+                        <div class="user-avatar">M</div>
+                        <div class="comment-input-wrapper">
+                            <input type="text" id="comment-input" placeholder="Escreva um comentário..."
+                                autocomplete="off">
+                            <button id="send-comment-btn" class="send-btn" aria-label="Enviar comentário">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <!-- Barra de Navegação Inferior (Comum para ambas as telas) -->
+        <nav class="bottom-nav">
+            <a href="#" class="nav-item">
+                <i class="fa-solid fa-house"></i>
+                <span>Início</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fa-solid fa-user-group"></i>
+                <span>Contatos</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fa-regular fa-file-lines"></i>
+                <span>Provas</span>
+            </a>
+            <a href="#" class="nav-item active">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Informações</span>
+                <span class="active-dot"></span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fa-regular fa-user"></i>
+                <span>Perfil</span>
+            </a>
+        </nav>
+    </div>
+
+    <script src="informacoes.js"></script>
+</body>
+
+</html>

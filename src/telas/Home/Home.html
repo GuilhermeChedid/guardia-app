@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home - Personal Safety</title>
+    <!-- Google Fonts for typography matching image -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="home.css">
+</head>
+
+<body>
+
+    <div class="app-container">
+
+        <!-- User Header -->
+        <section class="user-header">
+            <div class="user-greeting">
+                <span class="greeting-text">Bem-vinda de volta</span>
+                <h1 class="user-name">Maria Clara</h1>
+            </div>
+            <div class="user-avatar">
+                <span>M</span>
+            </div>
+        </section>
+
+        <!-- Emergency SOS Section -->
+        <section class="sos-container">
+            <h2 class="sos-title">PRESSIONE EM CASO DE EMERGÊNCIA</h2>
+            <button class="sos-button" aria-label="Botão de emergência SOS">
+                <div class="sos-content">
+                    <!-- Phone Icon -->
+                    <svg class="phone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+                        </path>
+                    </svg>
+                    <span class="sos-label">SOS</span>
+                    <span class="sos-sublabel">Pressione para acionar ajuda</span>
+                </div>
+            </button>
+        </section>
+
+        <!-- Feature Cards Grid -->
+        <section class="grid-container">
+            <!-- Card 1 -->
+            <div class="action-card">
+                <div class="icon-wrapper icon-location">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                </div>
+                <div class="card-info">
+                    <h3>Compartilhar Local</h3>
+                    <p>Com contatos</p>
+                </div>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="action-card">
+                <div class="icon-wrapper icon-record">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+                    </svg>
+                </div>
+                <div class="card-info">
+                    <h3>Gravar Evidência</h3>
+                    <p>Seguro e criptografado</p>
+                </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="action-card">
+                <div class="icon-wrapper icon-alert">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                    </svg>
+                </div>
+                <div class="card-info">
+                    <h3>Alertar Contatos</h3>
+                    <p>Enviar mensagem</p>
+                </div>
+            </div>
+
+            <!-- Card 4 -->
+            <div class="action-card">
+                <div class="icon-wrapper icon-info">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                </div>
+                <div class="card-info">
+                    <h3>Conteúdo Informativo</h3>
+                    <p>Apoio e emergências</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Safety Summary Card -->
+        <section class="summary-card">
+            <h2 class="summary-title">RESUMO DE SEGURANÇA</h2>
+            <div class="summary-metrics">
+                <div class="metric-item">
+                    <span class="metric-label">Contatos</span>
+                    <span class="metric-value status-active">4 ativos</span>
+                </div>
+                <div class="metric-divider"></div>
+                <div class="metric-item">
+                    <span class="metric-label">Localização</span>
+                    <span class="metric-value status-inactive">Inativa</span>
+                </div>
+                <div class="metric-divider"></div>
+                <div class="metric-item">
+                    <span class="metric-label">Gravações</span>
+                    <span class="metric-value status-active">3 salvas</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Bottom Navigation Bar -->
+        <nav class="bottom-nav">
+            <a href="#" class="nav-item active">
+                <div class="nav-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M10.707 2.293a1 1 0 00-1.414 0l-7 7A1 1 0 003 11h1v9a1 1 0 001 1h5a1 1 0 001-1v-4h2v4a1 1 0 001 1h5a1 1 0 001-1v-9h1a1 1 0 00.707-1.707l-7-7z" />
+                    </svg>
+                </div>
+                <span class="nav-label">Início</span>
+                <span class="active-dot"></span>
+            </a>
+
+            <a href="#" class="nav-item">
+                <div class="nav-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </div>
+                <span class="nav-label">Contatos</span>
+            </a>
+
+            <a href="#" class="nav-item">
+                <div class="nav-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                </div>
+                <span class="nav-label">Provas</span>
+            </a>
+
+            <a href="#" class="nav-item">
+                <div class="nav-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                </div>
+                <span class="nav-label">Informações</span>
+            </a>
+
+            <a href="#" class="nav-item">
+                <div class="nav-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                </div>
+                <span class="nav-label">Perfil</span>
+            </a>
+        </nav>
+    </div>
+
+</body>
+
+</html>

@@ -11,10 +11,12 @@ import {
     Platform,
     SafeAreaView,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 const logoGuardia = require('../../assets/imagens/logo_guardia.png');
 
 export default function CadastroScreen() {
+    const navigation = useNavigation();
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -26,7 +28,7 @@ export default function CadastroScreen() {
             >
                 <View style={styles.appContainer}>
                     <View style={styles.header}>
-                        <Pressable style={styles.backButton}>
+                        <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
                             <Text style={styles.backButtonText}>‹</Text>
                         </Pressable>
 
@@ -40,7 +42,12 @@ export default function CadastroScreen() {
                         </View>
                     </View>
 
-                    <ScrollView contentContainerStyle={styles.scrollContent}>
+                    <ScrollView
+                        style={styles.scrollView}
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                    >
                         <View style={styles.form}>
                             <View style={styles.sectionDivider}>
                                 <View style={styles.dividerLine} />
@@ -249,7 +256,11 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
     },
+    scrollView: {
+        flex: 1,
+    },
     scrollContent: {
+        flexGrow: 1,
         paddingBottom: 40,
     },
     form: {

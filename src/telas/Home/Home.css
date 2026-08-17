@@ -1,0 +1,328 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    background-color: #050505;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 0; /* Removido o padding para não ter margem no desktop */
+}
+
+/* App Container (Mobile Frame Dimensions) */
+.app-container {
+    width: 100%;
+    max-width: 390px;
+    background-color: #0d0d0f;
+    min-height: 100vh; /* Ajustado para ocupar toda a altura */
+    border-radius: 0; /* Bordas retas conforme solicitado */
+    position: relative;
+    padding: 24px 20px 80px 20px; /* Padding superior ajustado */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* User Header */
+.user-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 28px;
+    padding: 0 4px;
+}
+
+.greeting-text {
+    font-size: 13px;
+    color: #7e7e86;
+    display: block;
+    margin-bottom: 3px;
+    font-weight: 400;
+}
+
+.user-name {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.2px;
+}
+
+.user-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e03168 0%, #d81b60 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(224, 49, 104, 0.3);
+}
+
+/* Emergency SOS Section */
+.sos-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.sos-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #7d7d85;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+}
+
+.sos-button {
+    width: 175px;
+    height: 175px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #e6396e 0%, #c21852 60%, #800e31 100%);
+    border: none;
+    cursor: pointer;
+    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: 0 0 45px rgba(224, 49, 104, 0.45),
+                0 0 90px rgba(224, 49, 104, 0.2),
+                inset 0 2px 4px rgba(255, 255, 255, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sos-button:active {
+    transform: scale(0.96);
+    box-shadow: 0 0 30px rgba(224, 49, 104, 0.6);
+}
+
+.sos-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    text-align: center;
+    padding: 0 10px;
+}
+
+.phone-icon {
+    width: 28px;
+    height: 28px;
+    margin-bottom: 4px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+.sos-label {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    line-height: 1.1;
+    margin-bottom: 4px;
+}
+
+.sos-sublabel {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.85);
+    max-width: 110px;
+    line-height: 1.25;
+    font-weight: 400;
+}
+
+/* Feature Cards Grid */
+.grid-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.action-card {
+    background-color: #17171a;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 18px;
+    padding: 16px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    transition: background-color 0.2s ease;
+}
+
+.action-card:hover {
+    background-color: #1c1c20;
+}
+
+.icon-wrapper {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-wrapper svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Individual Icon Styles */
+.icon-location {
+    background-color: rgba(224, 49, 104, 0.12);
+    color: #e03168;
+}
+
+.icon-record {
+    background-color: rgba(235, 87, 87, 0.12);
+    color: #eb5757;
+}
+
+.icon-alert {
+    background-color: rgba(242, 153, 74, 0.12);
+    color: #f2994a;
+}
+
+.icon-info {
+    background-color: rgba(39, 174, 96, 0.12);
+    color: #27ae60;
+}
+
+.card-info h3 {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 3px;
+    line-height: 1.2;
+}
+
+.card-info p {
+    font-size: 11px;
+    color: #7d7d85;
+    line-height: 1.2;
+}
+
+/* Safety Summary Card */
+.summary-card {
+    background-color: #17171a;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.summary-title {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #7d7d85;
+    letter-spacing: 1.1px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+}
+
+.summary-metrics {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.metric-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.metric-label {
+    font-size: 11px;
+    color: #7d7d85;
+}
+
+.metric-value {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.status-active {
+    color: #2ecc71;
+}
+
+.status-inactive {
+    color: #eb5757;
+}
+
+.metric-divider {
+    width: 1px;
+    height: 28px;
+    background-color: rgba(255, 255, 255, 0.07);
+    margin: 0 8px;
+}
+
+/* Bottom Navigation Bar */
+.bottom-nav {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #121215;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px 10px 18px 10px;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: #6e6e76;
+    font-size: 10px;
+    font-weight: 500;
+    gap: 4px;
+    position: relative;
+    transition: color 0.2s ease;
+    flex: 1;
+}
+
+.nav-icon {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.nav-item.active {
+    color: #e03168;
+}
+
+.active-dot {
+    width: 3.5px;
+    height: 3.5px;
+    background-color: #e03168;
+    border-radius: 50%;
+    position: absolute;
+    bottom: -6px;
+}

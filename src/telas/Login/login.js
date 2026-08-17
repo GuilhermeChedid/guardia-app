@@ -10,10 +10,12 @@ import {
     Platform,
     SafeAreaView,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 const logoGuardia = require('../../assets/imagens/logo_guardia.png');
 
 export default function LoginScreen() {
+    const navigation = useNavigation();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -95,10 +97,12 @@ export default function LoginScreen() {
                                 <View style={styles.dividerLine} />
                             </View>
 
-                            <Text style={styles.registerText}>
-                                Não tem uma conta?{' '}
-                                <Text style={styles.registerLink}>Cadastre-se</Text>
-                            </Text>
+                            <Pressable onPress={() => navigation.navigate('Register')}>
+                                <Text style={styles.registerText}>
+                                    Não tem uma conta?{' '}
+                                    <Text style={styles.registerLink}>Cadastre-se</Text>
+                                </Text>
+                            </Pressable>
                         </View>
                     </View>
                 </View>
