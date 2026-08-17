@@ -1,0 +1,256 @@
+/* Importando fontes do Google Fonts (Lora para títulos, Inter para textos) */
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Inter:wght@400;500;600&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    color: #fff;
+}
+
+/* Container que simula a tela do celular */
+.app-container {
+    width: 100%;
+    max-width: 414px;
+    background-color: #0B0B0C;
+    height: 100vh;
+    max-height: 896px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 50px rgba(0,0,0,0.5);
+}
+
+/* --- SEÇÃO SUPERIOR (Logo e gradientes) --- */
+.top-section {
+    background-color: #4A1224; /* Fundo base vinho */
+    height: 38%;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* Círculos de fundo da imagem original */
+.blob {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(166, 43, 79, 0.4);
+    filter: blur(25px);
+}
+
+.blob-1 {
+    width: 250px;
+    height: 250px;
+    top: -50px;
+    left: -100px;
+}
+
+.blob-2 {
+    width: 380px;
+    height: 380px;
+    top: -120px;
+    right: -150px;
+    background: rgba(133, 22, 50, 0.6);
+}
+
+.logo-container {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    margin-top: 20px;
+}
+
+.logo-box {
+    width: 64px;
+    height: 64px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 18px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 16px;
+    background: transparent;
+}
+
+/* Estilo para a nova logo em imagem */
+.custom-logo {
+    width: 75%;
+    height: 75%;
+    object-fit: contain;
+}
+
+.brand-title {
+    font-family: 'Lora', serif;
+    font-size: 32px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+}
+
+.brand-subtitle {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.65);
+    font-weight: 400;
+}
+
+/* --- SEÇÃO INFERIOR (Formulário) --- */
+.bottom-section {
+    background-color: #0B0B0C; /* Fundo escuro */
+    padding: 36px 24px;
+    flex: 1;
+}
+
+.welcome-title {
+    font-family: 'Lora', serif;
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.welcome-subtitle {
+    font-size: 14px;
+    color: #7C7C82;
+    margin-bottom: 32px;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #EAEAEA;
+}
+
+.required {
+    color: #D6395B;
+}
+
+.input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background-color: #171719; /* Fundo do input */
+    border-radius: 12px;
+    height: 52px;
+    border: 1px solid transparent;
+    transition: border 0.3s ease;
+}
+
+.input-container:focus-within {
+    border-color: #A62B4F;
+}
+
+.icon-left {
+    position: absolute;
+    left: 16px;
+    color: #666;
+    font-size: 16px;
+}
+
+.icon-right {
+    position: absolute;
+    right: 16px;
+    color: #666;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.input-container input {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #fff;
+    padding-left: 46px;
+    padding-right: 46px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+}
+
+.input-container input::placeholder {
+    color: #555;
+}
+
+.forgot-password {
+    color: #D6395B;
+    font-size: 13px;
+    text-align: right;
+    text-decoration: none;
+    font-weight: 500;
+    margin-top: -6px;
+    margin-bottom: 32px;
+    align-self: flex-end;
+}
+
+.btn-primary {
+    background-color: #A62B4F;
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    height: 54px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    box-shadow: 0 8px 30px rgba(166, 43, 79, 0.3); /* Efeito de brilho */
+    transition: background 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #8A2140;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 32px 0;
+    color: #444;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #1f1f22;
+}
+
+.divider span {
+    padding: 0 16px;
+}
+
+.register-text {
+    text-align: center;
+    font-size: 14px;
+    color: #7C7C82;
+}
+
+.register-link {
+    color: #D6395B;
+    text-decoration: none;
+    font-weight: 600;
+}
