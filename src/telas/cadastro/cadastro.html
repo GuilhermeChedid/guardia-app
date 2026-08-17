@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guardiã - Criar Conta</title>
+    <!-- Importando FontAwesome para os ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="cadastro.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <button class="back-button"><i class="fa-solid fa-chevron-left"></i></button>
+            <div class="header-text">
+                <h1>Criar conta</h1>
+                <p>Preencha seus dados para continuar</p>
+            </div>
+            <div class="logo-box">
+                <img src="../../assets/imagens/logo_guardia.png" class="custom-logo" alt="Logo Guardia">
+            </div>
+        </header>
+
+        <!-- Formulario -->
+        <form class="register-form">
+            <!-- Divisor Dados Pessoais -->
+            <div class="section-divider">
+                <span>DADOS PESSOAIS</span>
+            </div>
+
+            <!-- Nome Completo -->
+            <div class="form-group">
+                <label>Nome completo <span class="required">*</span></label>
+                <div class="input-wrapper">
+                    <i class="fa-regular fa-user icon-left"></i>
+                    <input type="text" placeholder="Maria Clara Santos" required>
+                </div>
+            </div>
+
+            <!-- CPF -->
+            <div class="form-group">
+                <label>CPF <span class="required">*</span></label>
+                <div class="input-wrapper">
+                    <i class="fa-regular fa-id-card icon-left"></i>
+                    <input type="text" placeholder="000.000.000-00" required>
+                </div>
+            </div>
+
+            <!-- Estado Civil -->
+            <div class="form-group">
+                <label>Estado civil <span class="required">*</span></label>
+                <div class="input-wrapper">
+                    <i class="fa-regular fa-heart icon-left"></i>
+                    <select required>
+                        <option value="" disabled selected hidden>Selecione</option>
+                        <option value="solteiro">Solteiro(a)</option>
+                        <option value="casado">Casado(a)</option>
+                        <option value="divorciado">Divorciado(a)</option>
+                        <option value="viuvo">Viúvo(a)</option>
+                    </select>
+                    <i class="fa-solid fa-chevron-down icon-right"></i>
+                </div>
+            </div>
+
+            <!-- Telefone -->
+            <div class="form-group">
+                <label>Telefone <span class="required">*</span></label>
+                <div class="input-wrapper">
+                    <i class="fa-solid fa-phone icon-left"></i>
+                    <input type="tel" placeholder="(11) 99999-0000" required>
+                </div>
+            </div>
+
+            <!-- Endereço Completo -->
+            <div class="form-group">
+                <label>Endereço completo <span class="required">*</span></label>
+                <div class="input-wrapper">
+                    <i class="fa-solid fa-location-dot icon-left"></i>
+                    <input type="text" placeholder="Rua das Flores, 123 — São Paulo/SP" required>
+                </div>
+            </div>
+
+            <!-- Divisor Acesso -->
+            <div class="section-divider">
+                <span>ACESSO</span>
+            </div>
+
+            <!-- E-mail -->
+            <div class="form-group">
+                <label>E-mail <span class="required">*</span></label>
+                <div class="input-wrapper">
+                    <i class="fa-regular fa-envelope icon-left"></i>
+                    <input type="email" placeholder="seu@email.com" required>
+                </div>
+            </div>
+
+            <!-- Senha -->
+            <div class="form-group">
+                <label>Senha <span class="required">*</span></label>
+                <div class="input-wrapper">
+                    <i class="fa-solid fa-lock icon-left"></i>
+                    <input type="password" placeholder="Crie uma senha segura" required>
+                    <i class="fa-regular fa-eye icon-right"></i>
+                </div>
+                <!-- Regras de Senha -->
+                <ul class="password-rules">
+                    <li><span class="dot"></span> Mínimo 8 caracteres</li>
+                    <li><span class="dot"></span> 1 letra maiúscula</li>
+                    <li><span class="dot"></span> 1 letra minúscula</li>
+                    <li><span class="dot"></span> 1 número</li>
+                    <li><span class="dot"></span> 1 caractere especial (!@#$%&*_-)</li>
+                </ul>
+            </div>
+
+            <!-- Confirmação da Senha -->
+            <div class="form-group">
+                <label>Confirmação da senha <span class="required">*</span></label>
+                <div class="input-wrapper">
+                    <i class="fa-solid fa-lock icon-left"></i>
+                    <input type="password" placeholder="Repita sua senha" required>
+                    <i class="fa-regular fa-eye icon-right"></i>
+                </div>
+            </div>
+
+            <!-- Termos -->
+            <div class="terms-text">
+                Ao cadastrar, você concorda com nossos <a href="#">Termos de Uso</a>
+            </div>
+
+            <!-- Botão Submit -->
+            <button type="submit" class="btn-submit">Criar minha conta</button>
+
+            <!-- Link Login -->
+            <div class="login-link">
+                Já tem uma conta? <a href="#">Entrar</a>
+            </div>
+        </form>
+    </div>
+</body>
+
+</html>
