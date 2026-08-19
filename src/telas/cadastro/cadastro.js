@@ -7,11 +7,10 @@ import {
     StyleSheet,
     Image,
     ScrollView,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+
+import MobileFrame from '../../components/MobileFrame/MobileFrame';
 
 const logoGuardia = require('../../assets/imagens/logo_guardia.png');
 
@@ -21,192 +20,126 @@ export default function CadastroScreen() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     return (
-        <SafeAreaView style={styles.screen}>
-            <KeyboardAvoidingView
-                style={styles.keyboardView}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            >
-                <View style={styles.appContainer}>
-                    <View style={styles.header}>
-                        <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-                            <Text style={styles.backButtonText}>‹</Text>
-                        </Pressable>
+        <MobileFrame backgroundColor="#0B0B0C">
+            <ScrollView style={styles.appContainer} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                <View style={styles.header}>
+                    <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
+                        <Text style={styles.backArrow}>‹</Text>
+                    </Pressable>
 
-                        <View style={styles.headerText}>
-                            <Text style={styles.headerTitle}>Criar conta</Text>
-                            <Text style={styles.headerSubtitle}>Preencha seus dados para continuar</Text>
+                    <View style={styles.headerText}>
+                        <Text style={styles.headerTitle}>Criar conta</Text>
+                        <Text style={styles.headerSubtitle}>Preencha seus dados para continuar</Text>
+                    </View>
+
+                    <View style={styles.logoBox}>
+                        <Image source={logoGuardia} style={styles.customLogo} resizeMode="contain" />
+                    </View>
+                </View>
+
+                <View style={styles.formWrap}>
+                    <Section title="DADOS PESSOAIS" />
+
+                    <InputRow label="Nome completo" placeholder="Maria Clara Santos" icon="👤" />
+                    <InputRow label="CPF" placeholder="000.000.000-00" icon="🪪" />
+                    <InputRow label="Estado civil" placeholder="Selecione" icon="❤" right="⌄" />
+                    <InputRow label="Telefone" placeholder="(11) 99999-0000" icon="📞" />
+                    <InputRow label="Endereco completo" placeholder="Rua das Flores, 123 — Sao Paulo/SP" icon="📍" />
+
+                    <Section title="ACESSO" />
+
+                    <InputRow label="E-mail" placeholder="seu@email.com" icon="✉" />
+
+                    <View style={styles.group}>
+                        <Text style={styles.label}>Senha <Text style={styles.required}>*</Text></Text>
+                        <View style={styles.inputWrap}>
+                            <Text style={styles.iconLeft}>🔒</Text>
+                            <TextInput
+                                style={styles.input}
+                                secureTextEntry={!showPassword}
+                                placeholder="Crie uma senha segura"
+                                placeholderTextColor="#555"
+                            />
+                            <Pressable style={styles.iconRight} onPress={() => setShowPassword((prev) => !prev)}>
+                                <Text>{showPassword ? '🙈' : '👁️'}</Text>
+                            </Pressable>
                         </View>
-
-                        <View style={styles.logoBox}>
-                            <Image source={logoGuardia} style={styles.customLogo} resizeMode="contain" />
+                        <View style={styles.rules}>
+                            <Text style={styles.rule}>• Minimo 8 caracteres</Text>
+                            <Text style={styles.rule}>• 1 letra maiuscula</Text>
+                            <Text style={styles.rule}>• 1 letra minuscula</Text>
+                            <Text style={styles.rule}>• 1 numero</Text>
+                            <Text style={styles.rule}>• 1 caractere especial (!@#$%&*_-)</Text>
                         </View>
                     </View>
 
-                    <ScrollView
-                        style={styles.scrollView}
-                        contentContainerStyle={styles.scrollContent}
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                    >
-                        <View style={styles.form}>
-                            <View style={styles.sectionDivider}>
-                                <View style={styles.dividerLine} />
-                                <Text style={styles.sectionText}>DADOS PESSOAIS</Text>
-                                <View style={styles.dividerLine} />
-                            </View>
-
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>
-                                    Nome completo <Text style={styles.required}>*</Text>
-                                </Text>
-                                <View style={styles.inputWrapper}>
-                                    <Text style={styles.iconLeft}>👤</Text>
-                                    <TextInput placeholder="Maria Clara Santos" placeholderTextColor="#555" style={styles.input} />
-                                </View>
-                            </View>
-
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>
-                                    CPF <Text style={styles.required}>*</Text>
-                                </Text>
-                                <View style={styles.inputWrapper}>
-                                    <Text style={styles.iconLeft}>🪪</Text>
-                                    <TextInput placeholder="000.000.000-00" placeholderTextColor="#555" style={styles.input} keyboardType="numeric" />
-                                </View>
-                            </View>
-
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>
-                                    Estado civil <Text style={styles.required}>*</Text>
-                                </Text>
-                                <View style={styles.inputWrapper}>
-                                    <Text style={styles.iconLeft}>❤</Text>
-                                    <TextInput placeholder="Selecione" placeholderTextColor="#555" style={styles.input} />
-                                    <Text style={styles.iconRight}>⌄</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>
-                                    Telefone <Text style={styles.required}>*</Text>
-                                </Text>
-                                <View style={styles.inputWrapper}>
-                                    <Text style={styles.iconLeft}>📞</Text>
-                                    <TextInput placeholder="(11) 99999-0000" placeholderTextColor="#555" style={styles.input} keyboardType="phone-pad" />
-                                </View>
-                            </View>
-
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>
-                                    Endereço completo <Text style={styles.required}>*</Text>
-                                </Text>
-                                <View style={styles.inputWrapper}>
-                                    <Text style={styles.iconLeft}>📍</Text>
-                                    <TextInput placeholder="Rua das Flores, 123 — São Paulo/SP" placeholderTextColor="#555" style={styles.input} />
-                                </View>
-                            </View>
-
-                            <View style={styles.sectionDivider}>
-                                <View style={styles.dividerLine} />
-                                <Text style={styles.sectionText}>ACESSO</Text>
-                                <View style={styles.dividerLine} />
-                            </View>
-
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>
-                                    E-mail <Text style={styles.required}>*</Text>
-                                </Text>
-                                <View style={styles.inputWrapper}>
-                                    <Text style={styles.iconLeft}>✉</Text>
-                                    <TextInput placeholder="seu@email.com" placeholderTextColor="#555" style={styles.input} keyboardType="email-address" autoCapitalize="none" />
-                                </View>
-                            </View>
-
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>
-                                    Senha <Text style={styles.required}>*</Text>
-                                </Text>
-                                <View style={styles.inputWrapper}>
-                                    <Text style={styles.iconLeft}>🔒</Text>
-                                    <TextInput
-                                        placeholder="Crie uma senha segura"
-                                        placeholderTextColor="#555"
-                                        secureTextEntry={!showPassword}
-                                        style={styles.input}
-                                    />
-                                    <Pressable style={styles.iconRight} onPress={() => setShowPassword((prev) => !prev)}>
-                                        <Text style={styles.iconText}>{showPassword ? '🙈' : '👁️'}</Text>
-                                    </Pressable>
-                                </View>
-
-                                <View style={styles.passwordRules}>
-                                    <Text style={styles.rule}>• Mínimo 8 caracteres</Text>
-                                    <Text style={styles.rule}>• 1 letra maiúscula</Text>
-                                    <Text style={styles.rule}>• 1 letra minúscula</Text>
-                                    <Text style={styles.rule}>• 1 número</Text>
-                                    <Text style={styles.rule}>• 1 caractere especial (!@#$%&*_-)</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>
-                                    Confirmação da senha <Text style={styles.required}>*</Text>
-                                </Text>
-                                <View style={styles.inputWrapper}>
-                                    <Text style={styles.iconLeft}>🔒</Text>
-                                    <TextInput
-                                        placeholder="Repita sua senha"
-                                        placeholderTextColor="#555"
-                                        secureTextEntry={!showConfirmPassword}
-                                        style={styles.input}
-                                    />
-                                    <Pressable style={styles.iconRight} onPress={() => setShowConfirmPassword((prev) => !prev)}>
-                                        <Text style={styles.iconText}>{showConfirmPassword ? '🙈' : '👁️'}</Text>
-                                    </Pressable>
-                                </View>
-                            </View>
-
-                            <Text style={styles.termsText}>
-                                Ao cadastrar, você concorda com nossos{' '}
-                                <Text style={styles.termsLink}>Termos de Uso</Text>
-                            </Text>
-
-                            <Pressable style={styles.btnSubmit}>
-                                <Text style={styles.btnText}>Criar minha conta</Text>
+                    <View style={styles.group}>
+                        <Text style={styles.label}>Confirmacao da senha <Text style={styles.required}>*</Text></Text>
+                        <View style={styles.inputWrap}>
+                            <Text style={styles.iconLeft}>🔒</Text>
+                            <TextInput
+                                style={styles.input}
+                                secureTextEntry={!showConfirmPassword}
+                                placeholder="Repita sua senha"
+                                placeholderTextColor="#555"
+                            />
+                            <Pressable style={styles.iconRight} onPress={() => setShowConfirmPassword((prev) => !prev)}>
+                                <Text>{showConfirmPassword ? '🙈' : '👁️'}</Text>
                             </Pressable>
-
-                            <Text style={styles.loginLink}>
-                                Já tem uma conta? <Text style={styles.loginLinkAccent}>Entrar</Text>
-                            </Text>
                         </View>
-                    </ScrollView>
+                    </View>
+
+                    <Text style={styles.terms}>Ao cadastrar, voce concorda com nossos <Text style={styles.termsLink}>Termos de Uso</Text></Text>
+
+                    <Pressable style={styles.submitButton}>
+                        <Text style={styles.submitText}>Criar minha conta</Text>
+                    </Pressable>
+
+                    <Pressable onPress={() => navigation.navigate('Login')}>
+                        <Text style={styles.loginLink}>Ja tem uma conta? <Text style={styles.loginLinkAccent}>Entrar</Text></Text>
+                    </Pressable>
                 </View>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+            </ScrollView>
+        </MobileFrame>
+    );
+}
+
+function Section({ title }) {
+    return (
+        <View style={styles.sectionDivider}>
+            <View style={styles.sectionLine} />
+            <Text style={styles.sectionTitle}>{title}</Text>
+            <View style={styles.sectionLine} />
+        </View>
+    );
+}
+
+function InputRow({ label, placeholder, icon, right }) {
+    return (
+        <View style={styles.group}>
+            <Text style={styles.label}>{label} <Text style={styles.required}>*</Text></Text>
+            <View style={styles.inputWrap}>
+                <Text style={styles.iconLeft}>{icon}</Text>
+                <TextInput style={styles.input} placeholder={placeholder} placeholderTextColor="#555" />
+                {right ? <Text style={styles.iconRight}>{right}</Text> : null}
+            </View>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    screen: {
-        flex: 1,
-        backgroundColor: '#000',
-    },
-    keyboardView: {
-        flex: 1,
-    },
     appContainer: {
-        maxWidth: 414,
-        width: '100%',
-        alignSelf: 'center',
-        backgroundColor: '#0B0B0C',
         flex: 1,
-        overflow: 'hidden',
-        boxShadow: '0 0 50px rgba(0,0,0,0.5)',
+        backgroundColor: '#0B0B0C',
+    },
+    content: {
+        paddingBottom: 40,
     },
     header: {
         backgroundColor: '#5B1B2C',
-        paddingVertical: 30,
         paddingHorizontal: 24,
+        paddingTop: 30,
+        paddingBottom: 20,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -221,8 +154,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    backButtonText: {
-        color: '#FFF',
+    backArrow: {
+        color: '#FFFFFF',
         fontSize: 24,
         lineHeight: 24,
         marginTop: -2,
@@ -232,10 +165,9 @@ const styles = StyleSheet.create({
         marginHorizontal: 16,
     },
     headerTitle: {
-        fontFamily: 'serif',
         fontSize: 20,
-        fontWeight: '600',
-        color: '#FFF',
+        fontWeight: '700',
+        color: '#FFFFFF',
         marginBottom: 4,
     },
     headerSubtitle: {
@@ -250,20 +182,12 @@ const styles = StyleSheet.create({
         borderRadius: 18,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'transparent',
     },
     customLogo: {
         width: 48,
         height: 48,
     },
-    scrollView: {
-        flex: 1,
-    },
-    scrollContent: {
-        flexGrow: 1,
-        paddingBottom: 40,
-    },
-    form: {
+    formWrap: {
         paddingHorizontal: 24,
     },
     sectionDivider: {
@@ -272,107 +196,98 @@ const styles = StyleSheet.create({
         marginTop: 24,
         marginBottom: 20,
     },
-    dividerLine: {
+    sectionLine: {
         flex: 1,
         height: 1,
         backgroundColor: '#1F1F22',
     },
-    sectionText: {
+    sectionTitle: {
         paddingHorizontal: 12,
-        fontSize: 10,
         color: '#555',
-        fontWeight: '600',
+        fontSize: 10,
         letterSpacing: 1,
+        fontWeight: '600',
     },
-    formGroup: {
+    group: {
         marginBottom: 18,
     },
     label: {
         fontSize: 13,
         fontWeight: '600',
-        marginBottom: 8,
         color: '#EAEAEA',
+        marginBottom: 8,
     },
     required: {
         color: '#D6395B',
     },
-    inputWrapper: {
-        position: 'relative',
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#171719',
-        borderRadius: 12,
+    inputWrap: {
         height: 52,
+        borderRadius: 12,
+        backgroundColor: '#171719',
         borderWidth: 1,
         borderColor: 'transparent',
+        justifyContent: 'center',
     },
     iconLeft: {
         position: 'absolute',
         left: 16,
-        fontSize: 16,
         color: '#555',
-        zIndex: 1,
+        fontSize: 16,
     },
     iconRight: {
         position: 'absolute',
         right: 16,
-        zIndex: 1,
-    },
-    iconText: {
-        fontSize: 14,
         color: '#555',
+        fontSize: 14,
     },
     input: {
-        flex: 1,
-        height: '100%',
-        color: '#FFF',
-        fontSize: 14,
+        height: 52,
+        color: '#FFFFFF',
         paddingLeft: 46,
         paddingRight: 46,
-        fontFamily: 'System',
+        fontSize: 14,
     },
-    passwordRules: {
+    rules: {
         marginTop: 12,
+        paddingLeft: 4,
+        gap: 4,
     },
     rule: {
-        color: '#666',
-        fontSize: 11,
-        marginBottom: 6,
-    },
-    termsText: {
-        marginTop: 32,
-        marginBottom: 20,
-        color: '#666',
-        textAlign: 'center',
+        color: '#7C7C82',
         fontSize: 12,
     },
+    terms: {
+        marginTop: 6,
+        marginBottom: 24,
+        color: '#7C7C82',
+        fontSize: 13,
+        lineHeight: 20,
+    },
     termsLink: {
-        color: '#A62B4F',
+        color: '#D6395B',
         fontWeight: '600',
     },
-    btnSubmit: {
-        width: '100%',
-        backgroundColor: '#9E2648',
+    submitButton: {
+        backgroundColor: '#A62B4F',
         borderRadius: 14,
         height: 54,
         justifyContent: 'center',
         alignItems: 'center',
-        boxShadow: '0 4px 30px rgba(166, 43, 79, 0.4)',
-        marginBottom: 24,
+        marginBottom: 20,
     },
-    btnText: {
-        color: '#FFF',
+    submitText: {
+        color: '#FFFFFF',
         fontSize: 15,
         fontWeight: '600',
     },
     loginLink: {
-        color: '#666',
         textAlign: 'center',
-        fontSize: 13,
-        marginBottom: 12,
+        color: '#7C7C82',
+        fontSize: 14,
+        marginBottom: 10,
     },
     loginLinkAccent: {
-        color: '#A62B4F',
+        color: '#D6395B',
         fontWeight: '600',
     },
 });

@@ -19,10 +19,10 @@ body {
 /* Container do App com scroll configurado para simular Android */
 .app-container {
     width: 100%;
-    max-width: 414px;
+    max-width: 390px;
     background-color: #0B0B0C;
-    height: 100vh;
-    max-height: 896px; /* Tamanho típico de tela grande */
+    min-height: 100vh;
+    border-radius: 0;
     position: relative;
     overflow-y: auto; /* Habilita rolagem vertical */
     overflow-x: hidden;

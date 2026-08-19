@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Provas - Guardiã</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f1115;
+            color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .app-screen {
+            width: 100%;
+            max-width: 390px;
+            min-height: 100vh;
+            background-color: #0d0d0f;
+            position: relative;
+            overflow: hidden;
+            padding: 24px 16px 88px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 28px;
+        }
+
+        p {
+            margin: 0;
+            color: #a1a1aa;
+            line-height: 1.5;
+        }
+
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #101115;
+            border-top: 1px solid #1c1e24;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 12px 0 18px;
+            z-index: 40;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            text-decoration: none;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 500;
+            position: relative;
+            transition: color 0.2s ease;
+        }
+
+        .nav-item i {
+            font-size: 18px;
+        }
+
+        .nav-item.active {
+            color: #ff3366;
+        }
+
+        .active-dot {
+            width: 4px;
+            height: 4px;
+            background-color: #ff3366;
+            border-radius: 50%;
+            position: absolute;
+            bottom: -7px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-screen">
+        <h1>Provas</h1>
+        <p>Área para registro e organização de provas da Guardiã.</p>
+
+        <nav class="bottom-nav">
+            <a href="../Home/Home.html" class="nav-item">
+                <i class="fa-solid fa-house"></i>
+                <span>Início</span>
+            </a>
+            <a href="../Contatos/contatos.html" class="nav-item">
+                <i class="fa-solid fa-user-group"></i>
+                <span>Contatos</span>
+            </a>
+            <a href="../Provas/provas.html" class="nav-item active">
+                <i class="fa-regular fa-file-lines"></i>
+                <span>Provas</span>
+                <span class="active-dot"></span>
+            </a>
+            <a href="../Support/informacoes.html" class="nav-item">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Informações</span>
+            </a>
+            <a href="../Perfil/perfil.html" class="nav-item">
+                <i class="fa-regular fa-user"></i>
+                <span>Perfil</span>
+            </a>
+        </nav>
+    </div>
+</body>
+
+</html>

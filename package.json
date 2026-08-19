@@ -11,14 +11,21 @@
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.5",
+    "@expo/vector-icons": "^14.1.0",
+    "@react-native-masked-view/masked-view": "0.3.2",
     "@react-navigation/native": "^7.0.0",
     "@react-navigation/stack": "^7.0.0",
     "axios": "^1.7.2",
     "expo": "~53.0.0",
+    "expo-asset": "~11.1.7",
+    "expo-font": "~13.3.2",
     "expo-status-bar": "~2.0.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.2",
+    "react-native-gesture-handler": "~2.24.0",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.11.1",
     "react-native-web": "^0.20.0"
   },
   "devDependencies": {

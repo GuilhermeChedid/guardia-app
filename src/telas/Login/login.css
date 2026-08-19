@@ -20,10 +20,10 @@ body {
 /* Container que simula a tela do celular */
 .app-container {
     width: 100%;
-    max-width: 414px;
+    max-width: 390px;
     background-color: #0B0B0C;
-    height: 100vh;
-    max-height: 896px;
+    min-height: 100vh;
+    border-radius: 0;
     position: relative;
     overflow: hidden;
     display: flex;
@@ -33,8 +33,9 @@ body {
 
 /* --- SEÇÃO SUPERIOR (Logo e gradientes) --- */
 .top-section {
-    background-color: #4A1224; /* Fundo base vinho */
+    background: linear-gradient(180deg, #5B1B2C 0%, #4A1224 58%, #2B0F18 82%, #0B0B0C 100%);
     height: 38%;
+    min-height: 280px;
     position: relative;
     display: flex;
     justify-content: center;

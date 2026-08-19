@@ -19,8 +19,8 @@ body {
 /* Moldura Mobile com Bordas Retas */
 .app-screen {
   width: 100%;
-  max-width: 412px;
-  height: 870px;
+  max-width: 390px;
+  min-height: 100vh;
   background-color: #0c0d10;
   border-radius: 0;
   display: flex;
