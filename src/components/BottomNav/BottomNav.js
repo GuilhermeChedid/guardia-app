@@ -7,7 +7,7 @@ const ITEMS = [
     { key: 'Home', label: 'Inicio', icon: 'home' },
     { key: 'Contatos', label: 'Contatos', icon: 'account-group' },
     { key: 'Provas', label: 'Provas', icon: 'file-document-outline' },
-    { key: 'Informacoes', label: 'Informacoes', icon: 'shield-half-full' },
+    { key: 'Informacoes', label: 'Informações', icon: 'shield-half-full' },
     { key: 'Perfil', label: 'Perfil', icon: 'account-outline' },
 ];
 

@@ -1,6 +1,7 @@
-import React from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useRef } from 'react';
+import { Alert, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import BottomNav from '../../components/BottomNav/BottomNav';
@@ -14,6 +15,33 @@ const CARDS = [
 ];
 
 export default function HomeScreen() {
+    const navigation = useNavigation();
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+
+    const handlePressIn = () => {
+        Animated.spring(scaleAnim, {
+            toValue: 0.92,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const handlePressOut = () => {
+        Animated.spring(scaleAnim, {
+            toValue: 1,
+            friction: 3,
+            tension: 40,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const handleCardPress = (title) => {
+        if (title === 'Conteudo Informativo') {
+            navigation.navigate('Informacoes');
+        } else {
+            Alert.alert('Aviso', `A função "${title}" estará disponível em breve.`);
+        }
+    };
+
     return (
         <MobileFrame backgroundColor="#0D0D0F">
             <View style={styles.container}>
@@ -27,27 +55,27 @@ export default function HomeScreen() {
 
                 <View style={styles.sosContainer}>
                     <Text style={styles.sosTitle}>PRESSIONE EM CASO DE EMERGENCIA</Text>
-                    <Pressable
-                        style={styles.sosButton}
-                        onPress={() => Alert.alert('Alerta', MESSAGES.MSG12)}
-                    >
-                        <Feather name="phone-call" size={28} color="#FFFFFF" />
-                        <Text style={styles.sosLabel}>SOS</Text>
-                        <Text style={styles.sosSubtitle}>Pressione para acionar ajuda</Text>
-                    </Pressable>
+                    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+                        <Pressable
+                            style={styles.sosButton}
+                            onPressIn={handlePressIn}
+                            onPressOut={handlePressOut}
+                            onPress={() => Alert.alert('Alerta', MESSAGES.MSG12)}
+                        >
+                            <Feather name="phone-call" size={28} color="#FFFFFF" />
+                            <Text style={styles.sosLabel}>SOS</Text>
+                            <Text style={styles.sosSubtitle}>Pressione para acionar ajuda</Text>
+                        </Pressable>
+                    </Animated.View>
                 </View>
 
                 <View style={styles.grid}>
                     {CARDS.map((card) => (
-                        <View key={card.title} style={styles.actionCard}>
-                            <View style={[styles.iconWrap, { backgroundColor: card.bg }]}> 
-                                <MaterialCommunityIcons name={card.icon} size={18} color={card.color} />
-                            </View>
-                            <View>
-                                <Text style={styles.cardTitle}>{card.title}</Text>
-                                <Text style={styles.cardSubtitle}>{card.subtitle}</Text>
-                            </View>
-                        </View>
+                        <ActionCard
+                            key={card.title}
+                            card={card}
+                            onPress={() => handleCardPress(card.title)}
+                        />
                     ))}
                 </View>
 
@@ -64,6 +92,45 @@ export default function HomeScreen() {
             </View>
             <BottomNav active="Home" />
         </MobileFrame>
+    );
+}
+
+function ActionCard({ card, onPress }) {
+    const cardScale = useRef(new Animated.Value(1)).current;
+
+    const handlePressIn = () => {
+        Animated.spring(cardScale, {
+            toValue: 0.95,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const handlePressOut = () => {
+        Animated.spring(cardScale, {
+            toValue: 1,
+            friction: 3,
+            tension: 40,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    return (
+        <Animated.View style={[styles.cardWrapper, { transform: [{ scale: cardScale }] }]}>
+            <Pressable
+                style={styles.actionCard}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                onPress={onPress}
+            >
+                <View style={[styles.iconWrap, { backgroundColor: card.bg }]}>
+                    <MaterialCommunityIcons name={card.icon} size={18} color={card.color} />
+                </View>
+                <View>
+                    <Text style={styles.cardTitle}>{card.title}</Text>
+                    <Text style={styles.cardSubtitle}>{card.subtitle}</Text>
+                </View>
+            </Pressable>
+        </Animated.View>
     );
 }
 
@@ -155,14 +222,17 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         marginBottom: 16,
     },
-    actionCard: {
+    cardWrapper: {
         width: '48.3%',
+        marginBottom: 12,
+    },
+    actionCard: {
+        width: '100%',
         backgroundColor: '#17171A',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.05)',
         borderRadius: 18,
         padding: 14,
-        marginBottom: 12,
         gap: 12,
     },
     iconWrap: {
