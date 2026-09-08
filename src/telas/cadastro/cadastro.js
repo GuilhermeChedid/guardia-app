@@ -4,6 +4,7 @@ import {
     Text,
     TextInput,
     Pressable,
+    Modal,
     StyleSheet,
     ScrollView,
     Platform,
@@ -12,9 +13,22 @@ import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
+import { useTheme } from '../../context/ThemeContext';
+import { MARITAL_STATUS_OPTIONS } from '../../constants/profileOptions';
+
+const BRAZILIAN_STATES = [
+    ['AC', 'Acre'], ['AL', 'Alagoas'], ['AP', 'Amapá'], ['AM', 'Amazonas'],
+    ['BA', 'Bahia'], ['CE', 'Ceará'], ['DF', 'Distrito Federal'], ['ES', 'Espírito Santo'],
+    ['GO', 'Goiás'], ['MA', 'Maranhão'], ['MT', 'Mato Grosso'], ['MS', 'Mato Grosso do Sul'],
+    ['MG', 'Minas Gerais'], ['PA', 'Pará'], ['PB', 'Paraíba'], ['PR', 'Paraná'],
+    ['PE', 'Pernambuco'], ['PI', 'Piauí'], ['RJ', 'Rio de Janeiro'], ['RN', 'Rio Grande do Norte'],
+    ['RS', 'Rio Grande do Sul'], ['RO', 'Rondônia'], ['RR', 'Roraima'], ['SC', 'Santa Catarina'],
+    ['SP', 'São Paulo'], ['SE', 'Sergipe'], ['TO', 'Tocantins'],
+];
 
 export default function CadastroScreen() {
     const navigation = useNavigation();
+    const { colors } = useTheme();
 
     // Injeta estilo moderno e discreto para a barra de rolagem no navegador (Web)
     useEffect(() => {
@@ -55,6 +69,8 @@ export default function CadastroScreen() {
     const [neighborhood, setNeighborhood] = useState('');
     const [city, setCity] = useState('');
     const [state, setState] = useState('');
+    const [isStatePickerVisible, setStatePickerVisible] = useState(false);
+    const [isMaritalPickerVisible, setMaritalPickerVisible] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -66,16 +82,17 @@ export default function CadastroScreen() {
 
     return (
         <MobileFrame backgroundColor="#0B0B0C">
-            <View style={styles.screen}>
+            <View style={[styles.screen, { backgroundColor: colors.background }]}>
                 <ScrollView
                     style={styles.scrollContainer}
                     contentContainerStyle={styles.content}
                     showsVerticalScrollIndicator={true}
                     keyboardShouldPersistTaps="handled"
+                    automaticallyAdjustKeyboardInsets
                 >
                     <View style={styles.header}>
                         <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-                            <Text style={styles.backArrow}>‹</Text>
+                            <MaterialCommunityIcons name="chevron-left" size={24} color="#8B8B93" />
                         </Pressable>
 
                         <View style={styles.headerText}>
@@ -84,7 +101,7 @@ export default function CadastroScreen() {
                         </View>
 
                         <View style={styles.logoBox}>
-                            <MaterialCommunityIcons name="shield-outline" size={24} color="#FFFFFF" />
+                            <MaterialCommunityIcons name="shield-outline" size={24} color="#8B8B93" />
                         </View>
                     </View>
 
@@ -94,30 +111,32 @@ export default function CadastroScreen() {
                         <InputRow
                             label="Nome completo"
                             placeholder="Maria Clara Santos"
-                            icon="👤"
+                            icon="account-outline"
                             value={name}
                             onChangeText={setName}
                         />
                         <InputRow
                             label="CPF"
                             placeholder="000.000.000-00"
-                            icon="🪪"
+                            icon="card-account-details-outline"
                             value={cpf}
                             onChangeText={setCpf}
                             keyboardType="numeric"
                         />
-                        <InputRow
-                            label="Estado civil"
-                            placeholder="Selecione"
-                            icon="❤"
-                            right="⌄"
-                            value={maritalStatus}
-                            onChangeText={setMaritalStatus}
-                        />
+                        <View style={styles.group}>
+                            <Text style={styles.label}>Estado civil <Text style={styles.required}>*</Text></Text>
+                            <Pressable style={styles.inputWrap} onPress={() => setMaritalPickerVisible(true)}>
+                                <MaterialCommunityIcons name="heart-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
+                                <Text style={[styles.input, { color: maritalStatus ? colors.text : colors.muted }]}>
+                                    {maritalStatus || 'Selecione'}
+                                </Text>
+                                <MaterialCommunityIcons name="chevron-down" size={18} color="#8B8B93" style={styles.iconRight} />
+                            </Pressable>
+                        </View>
                         <InputRow
                             label="Telefone"
                             placeholder="(11) 99999-0000"
-                            icon="📞"
+                            icon="phone-outline"
                             value={phone}
                             onChangeText={setPhone}
                             keyboardType="phone-pad"
@@ -128,7 +147,7 @@ export default function CadastroScreen() {
                         <InputRow
                             label="CEP"
                             placeholder="00000-000"
-                            icon="📍"
+                            icon="map-marker-outline"
                             value={cep}
                             onChangeText={setCep}
                             keyboardType="numeric"
@@ -136,7 +155,7 @@ export default function CadastroScreen() {
                         <InputRow
                             label="Logradouro"
                             placeholder="Rua, Avenida, Travessa..."
-                            icon="📍"
+                            icon="map-marker-outline"
                             value={street}
                             onChangeText={setStreet}
                         />
@@ -145,7 +164,7 @@ export default function CadastroScreen() {
                             <View style={styles.halfGroup}>
                                 <Text style={styles.label}>Número <Text style={styles.required}>*</Text></Text>
                                 <View style={styles.inputWrap}>
-                                    <Text style={styles.iconLeft}>📍</Text>
+                                    <MaterialCommunityIcons name="map-marker-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Nº"
@@ -158,7 +177,7 @@ export default function CadastroScreen() {
                             <View style={styles.halfGroup}>
                                 <Text style={styles.label}>Complemento</Text>
                                 <View style={styles.inputWrap}>
-                                    <Text style={styles.iconLeft}>📍</Text>
+                                    <MaterialCommunityIcons name="map-marker-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Apto, sala..."
@@ -173,7 +192,7 @@ export default function CadastroScreen() {
                         <InputRow
                             label="Bairro"
                             placeholder="Bairro"
-                            icon="📍"
+                            icon="map-marker-outline"
                             value={neighborhood}
                             onChangeText={setNeighborhood}
                         />
@@ -182,7 +201,7 @@ export default function CadastroScreen() {
                             <View style={styles.cityGroup}>
                                 <Text style={styles.label}>Cidade <Text style={styles.required}>*</Text></Text>
                                 <View style={styles.inputWrap}>
-                                    <Text style={styles.iconLeft}>📍</Text>
+                                    <MaterialCommunityIcons name="map-marker-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                     <TextInput
                                         style={[styles.input, { paddingRight: 30 }]}
                                         placeholder="Selecione"
@@ -190,21 +209,17 @@ export default function CadastroScreen() {
                                         value={city}
                                         onChangeText={setCity}
                                     />
-                                    <Text style={styles.iconRight}>⌄</Text>
+                                    <MaterialCommunityIcons name="chevron-down" size={18} color="#8B8B93" style={styles.iconRight} />
                                 </View>
                             </View>
                             <View style={styles.stateGroup}>
                                 <Text style={styles.label}>Estado <Text style={styles.required}>*</Text></Text>
-                                <View style={styles.inputWrap}>
-                                    <TextInput
-                                        style={[styles.input, { paddingLeft: 16 }]}
-                                        placeholder="UF"
-                                        placeholderTextColor="#555"
-                                        value={state}
-                                        onChangeText={setState}
-                                        maxLength={2}
-                                    />
-                                </View>
+                                <Pressable style={styles.inputWrap} onPress={() => setStatePickerVisible(true)}>
+                                    <Text style={[styles.input, styles.stateValue, { color: state ? colors.text : colors.muted }]}>
+                                        {state || 'UF'}
+                                    </Text>
+                                    <MaterialCommunityIcons name="chevron-down" size={18} color="#8B8B93" style={styles.iconRight} />
+                                </Pressable>
                             </View>
                         </View>
 
@@ -213,7 +228,7 @@ export default function CadastroScreen() {
                         <InputRow
                             label="E-mail"
                             placeholder="seu@email.com"
-                            icon="✉"
+                            icon="email-outline"
                             value={email}
                             onChangeText={setEmail}
                             keyboardType="email-address"
@@ -222,7 +237,7 @@ export default function CadastroScreen() {
                         <View style={styles.group}>
                             <Text style={styles.label}>Senha <Text style={styles.required}>*</Text></Text>
                             <View style={styles.inputWrap}>
-                                <Text style={styles.iconLeft}>🔒</Text>
+                                <MaterialCommunityIcons name="lock-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                 <TextInput
                                     style={styles.input}
                                     secureTextEntry={!showPassword}
@@ -232,7 +247,7 @@ export default function CadastroScreen() {
                                     onChangeText={setPassword}
                                 />
                                 <Pressable style={styles.iconRightPressable} onPress={() => setShowPassword((prev) => !prev)}>
-                                    <Text>{showPassword ? '🙈' : '👁️'}</Text>
+                                    <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#8B8B93" />
                                 </Pressable>
                             </View>
                             <View style={styles.rules}>
@@ -247,7 +262,7 @@ export default function CadastroScreen() {
                         <View style={styles.group}>
                             <Text style={styles.label}>Confirmação da senha <Text style={styles.required}>*</Text></Text>
                             <View style={styles.inputWrap}>
-                                <Text style={styles.iconLeft}>🔒</Text>
+                                <MaterialCommunityIcons name="lock-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                 <TextInput
                                     style={styles.input}
                                     secureTextEntry={!showConfirmPassword}
@@ -257,7 +272,7 @@ export default function CadastroScreen() {
                                     onChangeText={setConfirmPassword}
                                 />
                                 <Pressable style={styles.iconRightPressable} onPress={() => setShowConfirmPassword((prev) => !prev)}>
-                                    <Text>{showConfirmPassword ? '🙈' : '👁️'}</Text>
+                                    <MaterialCommunityIcons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#8B8B93" />
                                 </Pressable>
                             </View>
                         </View>
@@ -265,7 +280,7 @@ export default function CadastroScreen() {
                         <Section title="PIN DE PROVAS" />
 
                         <View style={styles.pinInfoBox}>
-                            <MaterialCommunityIcons name="lock-outline" size={16} color="#D6395B" style={styles.pinInfoIcon} />
+                            <MaterialCommunityIcons name="lock-outline" size={16} color="#8B8B93" style={styles.pinInfoIcon} />
                             <Text style={styles.pinInfoText}>
                                 Este PIN de <Text style={styles.boldText}>4 dígitos</Text> protege o acesso à sua área de evidências. Guarde-o com segurança.
                             </Text>
@@ -274,7 +289,7 @@ export default function CadastroScreen() {
                         <View style={styles.group}>
                             <Text style={styles.label}>PIN de acesso às provas <Text style={styles.required}>*</Text></Text>
                             <View style={styles.inputWrap}>
-                                <Text style={styles.iconLeft}>🔒</Text>
+                                <MaterialCommunityIcons name="lock-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                 <TextInput
                                     style={styles.input}
                                     secureTextEntry
@@ -291,7 +306,7 @@ export default function CadastroScreen() {
                         <View style={styles.group}>
                             <Text style={styles.label}>Confirmar PIN <Text style={styles.required}>*</Text></Text>
                             <View style={styles.inputWrap}>
-                                <Text style={styles.iconLeft}>🔒</Text>
+                                <MaterialCommunityIcons name="lock-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                 <TextInput
                                     style={styles.input}
                                     secureTextEntry
@@ -317,6 +332,71 @@ export default function CadastroScreen() {
                     </View>
                 </ScrollView>
             </View>
+
+            <Modal
+                visible={isStatePickerVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setStatePickerVisible(false)}
+            >
+                <View style={styles.stateModalOverlay}>
+                    <View style={[styles.stateModal, { backgroundColor: colors.surface }]}>
+                        <View style={styles.stateModalHeader}>
+                            <Text style={[styles.stateModalTitle, { color: colors.text }]}>Selecione o estado</Text>
+                            <Pressable onPress={() => setStatePickerVisible(false)}>
+                                <MaterialCommunityIcons name="close" size={22} color={colors.muted} />
+                            </Pressable>
+                        </View>
+                        <ScrollView showsVerticalScrollIndicator keyboardShouldPersistTaps="handled">
+                            {BRAZILIAN_STATES.map(([uf, stateName]) => (
+                                <Pressable
+                                    key={uf}
+                                    style={[styles.stateOption, state === uf && styles.stateOptionActive]}
+                                    onPress={() => {
+                                        setState(uf);
+                                        setStatePickerVisible(false);
+                                    }}
+                                >
+                                    <Text style={[styles.stateUf, { color: colors.text }]}>{uf}</Text>
+                                    <Text style={[styles.stateName, { color: colors.muted }]}>{stateName}</Text>
+                                    {state === uf && <MaterialCommunityIcons name="check" size={18} color="#C83C59" />}
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal
+                visible={isMaritalPickerVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setMaritalPickerVisible(false)}
+            >
+                <View style={styles.stateModalOverlay}>
+                    <View style={[styles.stateModal, { backgroundColor: colors.surface }]}>
+                        <View style={styles.stateModalHeader}>
+                            <Text style={[styles.stateModalTitle, { color: colors.text }]}>Estado civil</Text>
+                            <Pressable onPress={() => setMaritalPickerVisible(false)}>
+                                <MaterialCommunityIcons name="close" size={22} color={colors.muted} />
+                            </Pressable>
+                        </View>
+                        {MARITAL_STATUS_OPTIONS.map((option) => (
+                            <Pressable
+                                key={option}
+                                style={[styles.stateOption, maritalStatus === option && styles.stateOptionActive]}
+                                onPress={() => {
+                                    setMaritalStatus(option);
+                                    setMaritalPickerVisible(false);
+                                }}
+                            >
+                                <Text style={[styles.stateName, { color: colors.text }]}>{option}</Text>
+                                {maritalStatus === option && <MaterialCommunityIcons name="check" size={18} color="#C83C59" />}
+                            </Pressable>
+                        ))}
+                    </View>
+                </View>
+            </Modal>
         </MobileFrame>
     );
 }
@@ -336,7 +416,7 @@ function InputRow({ label, placeholder, icon, right, value, onChangeText, keyboa
         <View style={styles.group}>
             <Text style={styles.label}>{label} <Text style={styles.required}>*</Text></Text>
             <View style={styles.inputWrap}>
-                <Text style={styles.iconLeft}>{icon}</Text>
+                <MaterialCommunityIcons name={icon} size={18} color="#8B8B93" style={styles.iconLeft} />
                 <TextInput
                     style={[styles.input, right ? { paddingRight: 36 } : null]}
                     placeholder={placeholder}
@@ -346,7 +426,7 @@ function InputRow({ label, placeholder, icon, right, value, onChangeText, keyboa
                     keyboardType={keyboardType}
                     maxLength={maxLength}
                 />
-                {right ? <Text style={styles.iconRight}>{right}</Text> : null}
+                {right ? <MaterialCommunityIcons name={right} size={18} color="#8B8B93" style={styles.iconRight} /> : null}
             </View>
         </View>
     );
@@ -494,6 +574,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         height: '100%',
     },
+    stateValue: {
+        paddingLeft: 16,
+        paddingTop: 15,
+    },
+    statePlaceholder: {
+        color: '#555',
+    },
     input: {
         height: 52,
         color: '#FFFFFF',
@@ -519,6 +606,47 @@ const styles = StyleSheet.create({
         color: '#C0C0C5',
         fontSize: 12,
         lineHeight: 18,
+    },
+    stateModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        justifyContent: 'center',
+        paddingHorizontal: 24,
+    },
+    stateModal: {
+        maxHeight: '78%',
+        borderRadius: 18,
+        padding: 18,
+    },
+    stateModalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 10,
+    },
+    stateModalTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+    },
+    stateOption: {
+        minHeight: 46,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(127,127,127,0.18)',
+        paddingVertical: 8,
+    },
+    stateOptionActive: {
+        backgroundColor: 'rgba(200,60,89,0.08)',
+    },
+    stateUf: {
+        width: 38,
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    stateName: {
+        flex: 1,
+        fontSize: 14,
     },
     boldText: {
         fontWeight: '700',

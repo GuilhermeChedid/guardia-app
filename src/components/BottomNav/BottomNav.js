@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../../context/ThemeContext';
 
 const ITEMS = [
     { key: 'Home', label: 'Inicio', icon: 'home' },
@@ -13,9 +14,10 @@ const ITEMS = [
 
 export default function BottomNav({ active }) {
     const navigation = useNavigation();
+    const { colors } = useTheme();
 
     return (
-        <View style={styles.bottomNav}>
+        <View style={[styles.bottomNav, { backgroundColor: colors.surfaceStrong, borderTopColor: colors.border }]}>
             {ITEMS.map((item) => {
                 const isActive = item.key === active;
                 return (
@@ -27,9 +29,9 @@ export default function BottomNav({ active }) {
                         <MaterialCommunityIcons
                             name={item.icon}
                             size={20}
-                            color={isActive ? '#E03168' : '#6E6E76'}
+                            color={isActive ? '#E03168' : colors.muted}
                         />
-                        <Text style={[styles.label, isActive && styles.labelActive]}>{item.label}</Text>
+                        <Text style={[styles.label, { color: colors.muted }, isActive && styles.labelActive]}>{item.label}</Text>
                         {isActive ? <View style={styles.activeDot} /> : null}
                     </Pressable>
                 );

@@ -9,6 +9,7 @@ import ContatosScreen from '../telas/Contatos/contatos';
 import ProvasScreen from '../telas/Provas/provas';
 import InformacoesScreen from '../telas/Support/InformacoesScreen';
 import PerfilScreen from '../telas/Perfil/Perfil';
+import AdminScreen from '../telas/adm/adm';
 
 const Stack = createStackNavigator();
 
@@ -23,6 +24,7 @@ export default function AppNavigator() {
                 <Stack.Screen name="Provas" component={ProvasScreen} />
                 <Stack.Screen name="Informacoes" component={InformacoesScreen} />
                 <Stack.Screen name="Perfil" component={PerfilScreen} />
+                <Stack.Screen name="Admin" component={AdminScreen} />
             </Stack.Navigator>
         </NavigationContainer>
     );

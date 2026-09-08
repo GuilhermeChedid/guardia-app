@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
+    Animated,
     FlatList,
     Modal,
     Pressable,
@@ -15,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import BottomNav from '../../components/BottomNav/BottomNav';
+import { useTheme } from '../../context/ThemeContext';
 
 const INITIAL_CONTACTS = [
     { id: '1', initials: 'AS', name: 'Ana Souza', relation: 'Mãe', phone: '(11) 99234-5678', color: '#C83C59' },
@@ -25,6 +27,7 @@ const INITIAL_CONTACTS = [
 
 export default function ContatosScreen() {
     const navigation = useNavigation();
+    const { colors } = useTheme();
     const [contacts, setContacts] = useState(INITIAL_CONTACTS);
 
     // Modal states
@@ -36,10 +39,45 @@ export default function ContatosScreen() {
     // Selection and Form states
     const [selectedContact, setSelectedContact] = useState(null);
     const [formData, setFormData] = useState({ name: '', relation: '', phone: '' });
+    const optionsSheetAnim = useRef(new Animated.Value(320)).current;
+    const alertScaleAnim = useRef(new Animated.Value(1)).current;
+
+    const handleAlertPressIn = () => {
+        Animated.spring(alertScaleAnim, {
+            toValue: 0.94,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const handleAlertPressOut = () => {
+        Animated.spring(alertScaleAnim, {
+            toValue: 1,
+            friction: 3,
+            tension: 40,
+            useNativeDriver: true,
+        }).start();
+    };
 
     const openOptions = (contact) => {
         setSelectedContact(contact);
         setOptionsVisible(true);
+        optionsSheetAnim.setValue(320);
+        requestAnimationFrame(() => {
+            Animated.spring(optionsSheetAnim, {
+                toValue: 0,
+                useNativeDriver: true,
+                damping: 20,
+                stiffness: 180,
+            }).start();
+        });
+    };
+
+    const closeOptions = () => {
+        Animated.timing(optionsSheetAnim, {
+            toValue: 320,
+            duration: 180,
+            useNativeDriver: true,
+        }).start(() => setOptionsVisible(false));
     };
 
     const openEdit = () => {
@@ -58,19 +96,19 @@ export default function ContatosScreen() {
     };
 
     const renderContact = ({ item }) => (
-        <View style={styles.contactCard}>
+        <View style={[styles.contactCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.avatar, { backgroundColor: item.color }]}>
                 <Text style={styles.avatarText}>{item.initials}</Text>
             </View>
             <View style={styles.contactInfo}>
-                <Text style={styles.contactName}>{item.name}</Text>
-                <Text style={styles.contactDetails}>{item.relation} · {item.phone}</Text>
+                <Text style={[styles.contactName, { color: colors.text }]}>{item.name}</Text>
+                <Text style={[styles.contactDetails, { color: colors.muted }]}>{item.relation} · {item.phone}</Text>
             </View>
             <View style={styles.actionButtons}>
-                <Pressable style={styles.iconBtn}>
+                <Pressable style={[styles.iconBtn, { backgroundColor: colors.border }]}>
                     <MaterialCommunityIcons name="phone-outline" size={20} color="#C83C59" />
                 </Pressable>
-                <Pressable style={styles.iconBtn} onPress={() => openOptions(item)}>
+                <Pressable style={[styles.iconBtn, { backgroundColor: colors.border }]} onPress={() => openOptions(item)}>
                     <MaterialCommunityIcons name="dots-horizontal" size={20} color="#8E8E93" />
                 </Pressable>
             </View>
@@ -79,11 +117,11 @@ export default function ContatosScreen() {
 
     return (
         <MobileFrame backgroundColor="#0D0D0D">
-            <View style={styles.appContainer}>
+            <View style={[styles.appContainer, { backgroundColor: colors.background }]}>
 
                 {/* Header */}
                 <View style={styles.header}>
-                    <Text style={styles.screenTitle}>Contatos de Confiança</Text>
+                    <Text style={[styles.screenTitle, { color: colors.text }]}>Contatos de Confiança</Text>
                     <Pressable style={styles.addBtn} onPress={() => setAddVisible(true)}>
                         <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
                     </Pressable>
@@ -97,10 +135,17 @@ export default function ContatosScreen() {
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
                     ListFooterComponent={
-                        <Pressable style={styles.alertBtn}>
-                            <MaterialCommunityIcons name="bell-ring-outline" size={22} color="#FFFFFF" style={styles.alertIcon} />
-                            <Text style={styles.alertBtnText}>Alertar todos os contatos agora</Text>
-                        </Pressable>
+                        <Animated.View style={{ transform: [{ scale: alertScaleAnim }] }}>
+                            <Pressable
+                                style={styles.alertBtn}
+                                onPressIn={handleAlertPressIn}
+                                onPressOut={handleAlertPressOut}
+                                onPress={() => navigation.navigate('Home', { startSos: true })}
+                            >
+                                <MaterialCommunityIcons name="bell-ring-outline" size={22} color="#FFFFFF" style={styles.alertIcon} />
+                                <Text style={styles.alertBtnText}>Alertar todos os contatos agora</Text>
+                            </Pressable>
+                        </Animated.View>
                     }
                 />
 
@@ -111,16 +156,16 @@ export default function ContatosScreen() {
             <Modal visible={isAddVisible} transparent animationType="slide">
                 <View style={styles.modalOverlay}>
                     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardAvoid}>
-                        <View style={styles.bottomSheet}>
+                        <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
                             <View style={styles.dragIndicator} />
-                            <Text style={styles.modalTitle}>Novo contato de confiança</Text>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>Novo contato de confiança</Text>
 
-                            <TextInput style={styles.input} placeholder="Nome completo *" placeholderTextColor="#8E8E93" />
-                            <TextInput style={styles.input} placeholder="Relação (ex: Mãe, Irmã, Amiga) *" placeholderTextColor="#8E8E93" />
-                            <TextInput style={styles.input} placeholder="Telefone *" placeholderTextColor="#8E8E93" keyboardType="phone-pad" />
+                            <TextInput style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Nome completo *" placeholderTextColor={colors.muted} />
+                            <TextInput style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Relação (ex: Mãe, Irmã, Amiga) *" placeholderTextColor={colors.muted} />
+                            <TextInput style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Telefone *" placeholderTextColor={colors.muted} keyboardType="phone-pad" />
 
                             <View style={styles.modalActions}>
-                                <Pressable style={styles.cancelBtn} onPress={() => setAddVisible(false)}>
+                                <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setAddVisible(false)}>
                                     <Text style={styles.cancelBtnText}>Cancelar</Text>
                                 </Pressable>
                                 <Pressable style={styles.primaryBtn} onPress={() => setAddVisible(false)}>
@@ -133,9 +178,13 @@ export default function ContatosScreen() {
             </Modal>
 
             {/* Modal: Opções do Contato */}
-            <Modal visible={isOptionsVisible} transparent animationType="slide">
+            <Modal visible={isOptionsVisible} transparent animationType="none" onRequestClose={closeOptions}>
                 <View style={styles.modalOverlay}>
-                    <View style={styles.bottomSheet}>
+                    <Pressable style={styles.modalBackdrop} onPress={closeOptions} />
+                    <Animated.View
+                        style={[styles.bottomSheet, { backgroundColor: colors.surface, transform: [{ translateY: optionsSheetAnim }] }]}
+                        onStartShouldSetResponder={() => true}
+                    >
                         <View style={styles.dragIndicator} />
 
                         {selectedContact && (
@@ -144,26 +193,26 @@ export default function ContatosScreen() {
                                     <Text style={styles.avatarText}>{selectedContact.initials}</Text>
                                 </View>
                                 <View>
-                                    <Text style={styles.contactName}>{selectedContact.name}</Text>
-                                    <Text style={styles.contactDetails}>{selectedContact.relation} · {selectedContact.phone}</Text>
+                                    <Text style={[styles.contactName, { color: colors.text }]}>{selectedContact.name}</Text>
+                                    <Text style={[styles.contactDetails, { color: colors.muted }]}>{selectedContact.relation} · {selectedContact.phone}</Text>
                                 </View>
                             </View>
                         )}
 
-                        <View style={styles.divider} />
+                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
                         <Pressable style={styles.optionRow} onPress={openEdit}>
-                            <MaterialCommunityIcons name="square-edit-outline" size={22} color="#FFFFFF" />
-                            <Text style={styles.optionText}>Editar contato</Text>
+                            <MaterialCommunityIcons name="square-edit-outline" size={22} color={colors.text} />
+                            <Text style={[styles.optionText, { color: colors.text }]}>Editar contato</Text>
                         </Pressable>
 
-                        <View style={styles.divider} />
+                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
                         <Pressable style={styles.optionRow} onPress={openRemove}>
                             <MaterialCommunityIcons name="account-remove-outline" size={22} color="#C83C59" />
                             <Text style={[styles.optionText, { color: '#C83C59' }]}>Remover contato</Text>
                         </Pressable>
-                    </View>
+                    </Animated.View>
                 </View>
             </Modal>
 
@@ -171,32 +220,32 @@ export default function ContatosScreen() {
             <Modal visible={isEditVisible} transparent animationType="slide">
                 <View style={styles.modalOverlay}>
                     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardAvoid}>
-                        <View style={styles.bottomSheet}>
+                        <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
                             <View style={styles.dragIndicator} />
-                            <Text style={styles.modalTitle}>Editar contato</Text>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>Editar contato</Text>
 
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]}
                                 value={formData.name}
                                 onChangeText={(t) => setFormData({ ...formData, name: t })}
-                                placeholderTextColor="#8E8E93"
+                                placeholderTextColor={colors.muted}
                             />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]}
                                 value={formData.relation}
                                 onChangeText={(t) => setFormData({ ...formData, relation: t })}
-                                placeholderTextColor="#8E8E93"
+                                placeholderTextColor={colors.muted}
                             />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]}
                                 value={formData.phone}
                                 onChangeText={(t) => setFormData({ ...formData, phone: t })}
-                                placeholderTextColor="#8E8E93"
+                                placeholderTextColor={colors.muted}
                                 keyboardType="phone-pad"
                             />
 
                             <View style={styles.modalActions}>
-                                <Pressable style={styles.cancelBtn} onPress={() => setEditVisible(false)}>
+                                <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setEditVisible(false)}>
                                     <Text style={styles.cancelBtnText}>Cancelar</Text>
                                 </Pressable>
                                 <Pressable style={styles.primaryBtn} onPress={() => setEditVisible(false)}>
@@ -211,17 +260,17 @@ export default function ContatosScreen() {
             {/* Modal: Remover Contato */}
             <Modal visible={isRemoveVisible} transparent animationType="fade">
                 <View style={styles.modalOverlayCenter}>
-                    <View style={styles.dialogBox}>
+                    <View style={[styles.dialogBox, { backgroundColor: colors.surface }]}>
                         <View style={styles.dialogIconContainer}>
                             <MaterialCommunityIcons name="account-remove-outline" size={32} color="#C83C59" />
                         </View>
-                        <Text style={styles.dialogTitle}>Remover contato?</Text>
+                        <Text style={[styles.dialogTitle, { color: colors.text }]}>Remover contato?</Text>
                         <Text style={styles.dialogText}>
-                            <Text style={{ fontWeight: '700', color: '#FFFFFF' }}>{selectedContact?.name}</Text> será removido da sua lista de confiança.
+                            <Text style={{ fontWeight: '700', color: colors.text }}>{selectedContact?.name}</Text> será removido da sua lista de confiança.
                         </Text>
 
                         <View style={styles.modalActions}>
-                            <Pressable style={styles.cancelBtn} onPress={() => setRemoveVisible(false)}>
+                            <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setRemoveVisible(false)}>
                                 <Text style={styles.cancelBtnText}>Cancelar</Text>
                             </Pressable>
                             <Pressable style={styles.primaryBtn} onPress={() => setRemoveVisible(false)}>
@@ -339,9 +388,12 @@ const styles = StyleSheet.create({
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: 'rgba(0,0,0,0.28)',
         justifyContent: 'flex-end',
         alignItems: 'center',
+    },
+    modalBackdrop: {
+        ...StyleSheet.absoluteFillObject,
     },
     modalOverlayCenter: {
         flex: 1,

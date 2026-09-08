@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
+    Animated,
     FlatList,
     Modal,
     Pressable,
@@ -14,6 +15,7 @@ import {
 import { MaterialCommunityIcons, Feather, Ionicons } from '@expo/vector-icons';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
+import { useTheme } from '../../context/ThemeContext';
 import BottomNav from '../../components/BottomNav/BottomNav';
 
 const MOCK_FILES = [
@@ -58,6 +60,7 @@ const MOCK_FILES = [
 const FILTERS = ['Todos', 'Fotos', 'Vídeos', 'Áudios', 'Arquivos'];
 
 export default function ProvasScreen() {
+    const { colors } = useTheme();
     // Auth State
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [pin, setPin] = useState('');
@@ -65,6 +68,14 @@ export default function ProvasScreen() {
     // Main Screen States
     const [activeFilter, setActiveFilter] = useState('Todos');
     const [files, setFiles] = useState(MOCK_FILES);
+    const filteredFiles = activeFilter === 'Todos'
+        ? files
+        : files.filter((file) => {
+            if (activeFilter === 'Fotos') return file.type === 'image';
+            if (activeFilter === 'Vídeos') return file.type === 'video';
+            if (activeFilter === 'Áudios') return file.type === 'audio';
+            return !['image', 'video', 'audio'].includes(file.type);
+        });
 
     // Modal States
     const [isOptionsVisible, setOptionsVisible] = useState(false);
@@ -74,6 +85,8 @@ export default function ProvasScreen() {
     // Selection and Form
     const [selectedFile, setSelectedFile] = useState(null);
     const [formData, setFormData] = useState({ name: '', description: '' });
+    const optionsSheetAnim = useRef(new Animated.Value(320)).current;
+    const editSheetAnim = useRef(new Animated.Value(320)).current;
 
     // --- PIN Logic ---
     useEffect(() => {
@@ -95,6 +108,23 @@ export default function ProvasScreen() {
     const openOptions = (file) => {
         setSelectedFile(file);
         setOptionsVisible(true);
+        optionsSheetAnim.setValue(320);
+        requestAnimationFrame(() => {
+            Animated.spring(optionsSheetAnim, {
+                toValue: 0,
+                useNativeDriver: true,
+                damping: 20,
+                stiffness: 180,
+            }).start();
+        });
+    };
+
+    const closeOptions = () => {
+        Animated.timing(optionsSheetAnim, {
+            toValue: 320,
+            duration: 180,
+            useNativeDriver: true,
+        }).start(() => setOptionsVisible(false));
     };
 
     const openEdit = () => {
@@ -103,7 +133,26 @@ export default function ProvasScreen() {
             description: selectedFile.description || ''
         });
         setOptionsVisible(false);
-        setTimeout(() => setEditVisible(true), 300);
+        editSheetAnim.setValue(320);
+        setTimeout(() => {
+            setEditVisible(true);
+            requestAnimationFrame(() => {
+                Animated.spring(editSheetAnim, {
+                    toValue: 0,
+                    useNativeDriver: true,
+                    damping: 20,
+                    stiffness: 180,
+                }).start();
+            });
+        }, 300);
+    };
+
+    const closeEdit = () => {
+        Animated.timing(editSheetAnim, {
+            toValue: 320,
+            duration: 180,
+            useNativeDriver: true,
+        }).start(() => setEditVisible(false));
     };
 
     const openDelete = () => {
@@ -118,14 +167,14 @@ export default function ProvasScreen() {
                 <View style={styles.lockIconContainer}>
                     <Feather name="lock" size={28} color="#C83C59" />
                 </View>
-                <Text style={styles.screenTitleCenter}>Área Protegida</Text>
-                <Text style={styles.pinSubtitle}>Digite seu PIN de 4 dígitos para acessar as evidências</Text>
+                <Text style={[styles.screenTitleCenter, { color: colors.text }]}>Área Protegida</Text>
+                <Text style={[styles.pinSubtitle, { color: colors.muted }]}>Digite seu PIN de 4 dígitos para acessar as evidências</Text>
 
                 <View style={styles.pinDotsContainer}>
                     {[1, 2, 3, 4].map((_, idx) => (
                         <View
                             key={idx}
-                            style={[styles.pinDot, pin.length > idx && styles.pinDotActive]}
+                            style={[styles.pinDot, { backgroundColor: colors.border }, pin.length > idx && styles.pinDotActive]}
                         />
                     ))}
                 </View>
@@ -133,16 +182,16 @@ export default function ProvasScreen() {
 
             <View style={styles.keypad}>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                    <Pressable key={num} style={styles.keypadBtn} onPress={() => handlePinPress(num.toString())}>
-                        <Text style={styles.keypadTxt}>{num}</Text>
+                    <Pressable key={num} style={[styles.keypadBtn, { backgroundColor: colors.surface }]} onPress={() => handlePinPress(num.toString())}>
+                        <Text style={[styles.keypadTxt, { color: colors.text }]}>{num}</Text>
                     </Pressable>
                 ))}
                 <View style={styles.keypadBtnEmpty} />
-                <Pressable style={styles.keypadBtn} onPress={() => handlePinPress('0')}>
-                    <Text style={styles.keypadTxt}>0</Text>
+                <Pressable style={[styles.keypadBtn, { backgroundColor: colors.surface }]} onPress={() => handlePinPress('0')}>
+                    <Text style={[styles.keypadTxt, { color: colors.text }]}>0</Text>
                 </Pressable>
-                <Pressable style={styles.keypadBtn} onPress={handleBackspace}>
-                    <Ionicons name="backspace-outline" size={24} color="#8E8E93" />
+                <Pressable style={[styles.keypadBtn, { backgroundColor: colors.surfaceStrong }]} onPress={handleBackspace}>
+                    <Ionicons name="backspace-outline" size={24} color={colors.muted} />
                 </Pressable>
             </View>
         </View>
@@ -150,22 +199,22 @@ export default function ProvasScreen() {
 
     // --- Render Main Content ---
     const renderFileItem = ({ item }) => (
-        <View style={styles.fileCard}>
+        <View style={[styles.fileCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.fileIconBox, { backgroundColor: item.iconBg }]}>
                 <MaterialCommunityIcons name={item.icon} size={24} color={item.iconColor} />
             </View>
             <View style={styles.fileInfo}>
-                <Text style={styles.fileName} numberOfLines={1}>{item.name}</Text>
+                <Text style={[styles.fileName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
                 {item.description ? (
-                    <Text style={styles.fileDescription} numberOfLines={1}>{item.description}</Text>
+                    <Text style={[styles.fileDescription, { color: colors.muted }]} numberOfLines={1}>{item.description}</Text>
                 ) : null}
-                <Text style={styles.fileMeta}>
+                <Text style={[styles.fileMeta, { color: colors.muted }]}>
                     {item.date} · {item.size} {item.duration ? `· ${item.duration}` : ''}
                 </Text>
             </View>
             <View style={styles.fileActions}>
                 <Feather name="lock" size={14} color="#23A862" style={{ marginRight: 12 }} />
-                <Pressable style={styles.optionsBtn} onPress={() => openOptions(item)}>
+                <Pressable style={[styles.optionsBtn, { backgroundColor: colors.border }]} onPress={() => openOptions(item)}>
                     <MaterialCommunityIcons name="dots-horizontal" size={20} color="#8E8E93" />
                 </Pressable>
             </View>
@@ -174,7 +223,7 @@ export default function ProvasScreen() {
 
     return (
         <MobileFrame backgroundColor="#0D0D0D">
-            <View style={styles.appContainer}>
+            <View style={[styles.appContainer, { backgroundColor: colors.background }]}>
 
                 {!isAuthenticated ? (
                     renderPinPad()
@@ -182,8 +231,10 @@ export default function ProvasScreen() {
                     <View style={{ flex: 1 }}>
                         <View style={styles.headerRow}>
                             <View>
-                                <Text style={styles.screenTitle}>Provas e Evidências</Text>
-                                <Text style={styles.screenSubtitle}>3 arquivos · Criptografados</Text>
+                                <Text style={[styles.screenTitle, { color: colors.text }]}>Provas e Evidências</Text>
+                                <Text style={[styles.screenSubtitle, { color: colors.muted }]}>
+                                    {filteredFiles.length} {filteredFiles.length === 1 ? 'arquivo' : 'arquivos'} · Criptografados
+                                </Text>
                             </View>
                             <View style={styles.secureBadge}>
                                 <Feather name="lock" size={12} color="#23A862" />
@@ -191,9 +242,9 @@ export default function ProvasScreen() {
                             </View>
                         </View>
 
-                        <Pressable style={styles.uploadArea}>
+                        <Pressable style={[styles.uploadArea, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                             <Feather name="upload" size={24} color="#23A862" style={{ marginBottom: 8 }} />
-                            <Text style={styles.uploadText}>Upload</Text>
+                            <Text style={[styles.uploadText, { color: colors.text }]}>Upload</Text>
                         </Pressable>
 
                         <View>
@@ -201,10 +252,10 @@ export default function ProvasScreen() {
                                 {FILTERS.map(f => (
                                     <Pressable
                                         key={f}
-                                        style={[styles.filterPill, activeFilter === f && styles.filterPillActive]}
+                                        style={[styles.filterPill, { backgroundColor: colors.surface, borderColor: colors.border }, activeFilter === f && styles.filterPillActive]}
                                         onPress={() => setActiveFilter(f)}
                                     >
-                                        <Text style={[styles.filterTxt, activeFilter === f && styles.filterTxtActive]}>
+                                        <Text style={[styles.filterTxt, { color: colors.muted }, activeFilter === f && styles.filterTxtActive]}>
                                             {f}
                                         </Text>
                                     </Pressable>
@@ -213,15 +264,21 @@ export default function ProvasScreen() {
                         </View>
 
                         <FlatList
-                            data={files}
+                            data={filteredFiles}
                             keyExtractor={(item) => item.id}
                             renderItem={renderFileItem}
                             contentContainerStyle={styles.listContent}
                             showsVerticalScrollIndicator={false}
+                            ListEmptyComponent={
+                                <View style={styles.emptyFilesState}>
+                                    <MaterialCommunityIcons name="file-search-outline" size={32} color={colors.muted} />
+                                    <Text style={[styles.emptyFilesText, { color: colors.muted }]}>Nenhuma evidência nesta categoria.</Text>
+                                </View>
+                            }
                             ListFooterComponent={
-                                <View style={styles.infoFooter}>
+                                <View style={[styles.infoFooter, { backgroundColor: colors.surfaceStrong, borderColor: colors.border }]}>
                                     <Feather name="alert-circle" size={16} color="#8E8E93" style={{ marginTop: 2 }} />
-                                    <Text style={styles.infoFooterText}>
+                                    <Text style={[styles.infoFooterText, { color: colors.muted }]}>
                                         Todas as evidências são criptografadas e armazenadas com segurança. Apenas você pode acessá-las.
                                     </Text>
                                 </View>
@@ -234,9 +291,13 @@ export default function ProvasScreen() {
             </View>
 
             {/* Modal: Opções do Arquivo */}
-            <Modal visible={isOptionsVisible} transparent animationType="slide">
+            <Modal visible={isOptionsVisible} transparent animationType="none" onRequestClose={closeOptions}>
                 <View style={styles.modalOverlay}>
-                    <View style={styles.bottomSheet}>
+                    <Pressable style={styles.modalBackdrop} onPress={closeOptions} />
+                    <Animated.View
+                        style={[styles.bottomSheet, { backgroundColor: colors.surface, transform: [{ translateY: optionsSheetAnim }] }]}
+                        onStartShouldSetResponder={() => true}
+                    >
                         <View style={styles.dragIndicator} />
 
                         {selectedFile && (
@@ -245,8 +306,8 @@ export default function ProvasScreen() {
                                     <MaterialCommunityIcons name={selectedFile.icon} size={24} color={selectedFile.iconColor} />
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.fileName} numberOfLines={1}>{selectedFile.name}</Text>
-                                    <Text style={styles.fileMeta}>{selectedFile.date} · {selectedFile.size}</Text>
+                                    <Text style={[styles.fileName, { color: colors.text }]} numberOfLines={1}>{selectedFile.name}</Text>
+                                    <Text style={[styles.fileMeta, { color: colors.muted }]}>{selectedFile.date} · {selectedFile.size}</Text>
                                 </View>
                             </View>
                         )}
@@ -255,7 +316,7 @@ export default function ProvasScreen() {
 
                         <Pressable style={styles.optionRow} onPress={openEdit}>
                             <Feather name="edit" size={20} color="#FFFFFF" />
-                            <Text style={styles.optionText}>Renomear / Editar descrição</Text>
+                            <Text style={[styles.optionText, { color: colors.text }]}>Renomear / Editar descrição</Text>
                         </Pressable>
 
                         <View style={styles.divider} />
@@ -264,63 +325,66 @@ export default function ProvasScreen() {
                             <Feather name="trash-2" size={20} color="#C83C59" />
                             <Text style={[styles.optionText, { color: '#C83C59' }]}>Excluir evidência</Text>
                         </Pressable>
-                    </View>
+                    </Animated.View>
                 </View>
             </Modal>
 
             {/* Modal: Editar Evidência */}
-            <Modal visible={isEditVisible} transparent animationType="slide">
+            <Modal visible={isEditVisible} transparent animationType="none" onRequestClose={closeEdit}>
                 <View style={styles.modalOverlay}>
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardAvoid}>
-                        <View style={styles.bottomSheet}>
-                            <View style={styles.dragIndicator} />
-                            <Text style={styles.modalTitle}>Editar evidência</Text>
+                    <Pressable style={styles.modalBackdrop} onPress={closeEdit} />
+                    <Animated.View style={{ transform: [{ translateY: editSheetAnim }], width: '100%' }} onStartShouldSetResponder={() => true}>
+                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardAvoid}>
+                            <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
+                                <View style={styles.dragIndicator} />
+                                <Text style={[styles.modalTitle, { color: colors.text }]}>Editar evidência</Text>
 
-                            <Text style={styles.inputLabel}>NOME DO ARQUIVO</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={formData.name}
-                                onChangeText={(t) => setFormData({ ...formData, name: t })}
-                                placeholderTextColor="#8E8E93"
-                            />
+                                <Text style={styles.inputLabel}>NOME DO ARQUIVO</Text>
+                                <TextInput
+                                    style={[styles.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
+                                    value={formData.name}
+                                    onChangeText={(t) => setFormData({ ...formData, name: t })}
+                                    placeholderTextColor="#8E8E93"
+                                />
 
-                            <Text style={styles.inputLabel}>DESCRIÇÃO</Text>
-                            <TextInput
-                                style={[styles.input, styles.textArea]}
-                                value={formData.description}
-                                onChangeText={(t) => setFormData({ ...formData, description: t })}
-                                placeholderTextColor="#8E8E93"
-                                multiline
-                                textAlignVertical="top"
-                            />
+                                <Text style={styles.inputLabel}>DESCRIÇÃO</Text>
+                                <TextInput
+                                    style={[styles.input, styles.textArea, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
+                                    value={formData.description}
+                                    onChangeText={(t) => setFormData({ ...formData, description: t })}
+                                    placeholderTextColor="#8E8E93"
+                                    multiline
+                                    textAlignVertical="top"
+                                />
 
-                            <View style={styles.modalActions}>
-                                <Pressable style={styles.cancelBtn} onPress={() => setEditVisible(false)}>
-                                    <Text style={styles.cancelBtnText}>Cancelar</Text>
-                                </Pressable>
-                                <Pressable style={styles.primaryBtn} onPress={() => setEditVisible(false)}>
-                                    <Text style={styles.primaryBtnText}>Salvar</Text>
-                                </Pressable>
+                                <View style={styles.modalActions}>
+                                    <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={closeEdit}>
+                                        <Text style={styles.cancelBtnText}>Cancelar</Text>
+                                    </Pressable>
+                                    <Pressable style={styles.primaryBtn} onPress={closeEdit}>
+                                        <Text style={styles.primaryBtnText}>Salvar</Text>
+                                    </Pressable>
+                                </View>
                             </View>
-                        </View>
-                    </KeyboardAvoidingView>
+                        </KeyboardAvoidingView>
+                    </Animated.View>
                 </View>
             </Modal>
 
             {/* Modal: Excluir Evidência */}
             <Modal visible={isDeleteVisible} transparent animationType="fade">
                 <View style={styles.modalOverlayCenter}>
-                    <View style={styles.dialogBox}>
+                    <View style={[styles.dialogBox, { backgroundColor: colors.surface }]}>
                         <View style={styles.dialogIconContainer}>
                             <Feather name="trash-2" size={32} color="#C83C59" />
                         </View>
-                        <Text style={styles.dialogTitle}>Excluir evidência?</Text>
+                        <Text style={[styles.dialogTitle, { color: colors.text }]}>Excluir evidência?</Text>
                         <Text style={styles.dialogText}>
-                            "<Text style={{ fontWeight: '700', color: '#FFFFFF' }}>{selectedFile?.name}</Text>" será removida permanentemente.
+                            "<Text style={{ fontWeight: '700', color: colors.text }}>{selectedFile?.name}</Text>" será removida permanentemente.
                         </Text>
 
                         <View style={styles.modalActions}>
-                            <Pressable style={styles.cancelBtn} onPress={() => setDeleteVisible(false)}>
+                            <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setDeleteVisible(false)}>
                                 <Text style={styles.cancelBtnText}>Cancelar</Text>
                             </Pressable>
                             <Pressable style={styles.primaryBtn} onPress={() => setDeleteVisible(false)}>
@@ -492,6 +556,16 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 100,
     },
+    emptyFilesState: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 40,
+    },
+    emptyFilesText: {
+        fontSize: 13,
+        marginTop: 10,
+        textAlign: 'center',
+    },
     fileCard: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -560,9 +634,12 @@ const styles = StyleSheet.create({
     // --- MODAL STYLES ---
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: 'rgba(0,0,0,0.28)',
         justifyContent: 'flex-end',
         alignItems: 'center',
+    },
+    modalBackdrop: {
+        ...StyleSheet.absoluteFillObject,
     },
     modalOverlayCenter: {
         flex: 1,

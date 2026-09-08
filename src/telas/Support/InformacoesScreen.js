@@ -14,105 +14,16 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import BottomNav from '../../components/BottomNav/BottomNav';
+import { useTheme } from '../../context/ThemeContext';
+import { POST_CATEGORIES } from '../../constants/posts';
+import { usePosts } from '../../context/PostsContext';
+import { useUserProfile } from '../../context/UserProfileContext';
 
-const INITIAL_POSTS = [
-    {
-        id: 1,
-        badge: 'Saúde Mental',
-        badgeClass: 'pink',
-        time: 'Hoje, 08:00',
-        title: 'Cuidar de você é o primeiro passo',
-        excerpt: 'Situações de violência e abuso deixam marcas emocionais profundas. Buscar apoio psicológico não é fraqueza — é...',
-        image: 'https://images.unsplash.com/photo-1544027993-37dbfe43562a?auto=format&fit=crop&w=800&q=80',
-        paragraphs: [
-            'Situações de violência e abuso deixam marcas emocionais profundas. Buscar apoio psicológico não é fraqueza — é um ato de coragem e autocuidado.',
-            'O CAPS (Centro de Atenção Psicossocial) oferece atendimento gratuito em todo o Brasil. Você merece se sentir bem, segura e acolhida.',
-        ],
-        likes: 218,
-        isLiked: false,
-        comments: [
-            {
-                author: 'Beatriz A.',
-                avatar: 'B',
-                time: '08:34',
-                text: 'Esse post chegou no momento certo. Obrigada, Guardiã. 💜',
-            },
-        ],
-    },
-    {
-        id: 2,
-        badge: 'Rede de Apoio',
-        badgeClass: 'pink',
-        time: 'Hoje, 07:30',
-        title: 'Você não está sozinha — juntas somos mais fortes',
-        excerpt: 'Construir uma rede de apoio de pessoas de confiança é uma das estratégias mais importantes para se proteger.',
-        image: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80',
-        paragraphs: [
-            'Construir uma rede de apoio de pessoas de confiança é uma das estratégias mais importantes para se proteger e lidar com situações de vulnerabilidade.',
-            'Mantenha contato constante com amigas, familiares ou instituições que possam oferecer acolhimento seguro.',
-        ],
-        likes: 174,
-        isLiked: false,
-        comments: [
-            {
-                author: 'Carla M.',
-                avatar: 'C',
-                time: '07:45',
-                text: 'Muito importante espalhar essa mensagem!',
-            },
-            {
-                author: 'Fernanda S.',
-                avatar: 'F',
-                time: '08:12',
-                text: 'Nenhuma de nós está sozinha!',
-            },
-        ],
-    },
-    {
-        id: 3,
-        badge: 'Direitos',
-        badgeClass: 'blue',
-        time: '11 ago, 11:00',
-        title: 'A Justiça está do seu lado',
-        excerpt: 'A legislação brasileira é uma das mais avançadas do mundo na proteção da mulher. Além da Lei Maria da...',
-        image: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&q=80',
-        paragraphs: [
-            'A legislação brasileira é uma das mais avançadas do mundo na proteção da mulher. Além da Lei Maria da Penha, existem diversos mecanismos de proteção.',
-            'Conheça seus direitos e saiba como recorrer às autoridades competentes sempre que necessário.',
-        ],
-        likes: 131,
-        isLiked: false,
-        comments: [],
-    },
-    {
-        id: 4,
-        badge: 'Conscientização',
-        badgeClass: 'pink',
-        time: 'Hoje, 10:00',
-        title: 'Reconhecendo sinais de violência doméstica',
-        excerpt: 'A violência doméstica nem sempre deixa marcas visíveis. Aprenda a identificar comportamentos abusivos...',
-        image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80',
-        paragraphs: [
-            'A violência doméstica nem sempre deixa marcas visíveis. Aprenda a identificar comportamentos abusivos no dia a dia.',
-            'Reconhecer os sinais no início é fundamental para romper ciclos antes que se tornem perigosos.',
-        ],
-        likes: 95,
-        isLiked: false,
-        comments: [
-            {
-                author: 'Juliana R.',
-                avatar: 'J',
-                time: '10:15',
-                text: 'Informação salva vidas. Parabéns pelo conteúdo!',
-            },
-        ],
-    },
-];
-
-const CATEGORIES = ['Todas', 'Saúde Mental', 'Rede de Apoio', 'Direitos', 'Conscientização'];
+const CATEGORIES = ['Todas', ...POST_CATEGORIES];
 
 // Componente isolado para o Card do Post gerenciar sua própria animação de curtida
 function PostCard({ post, onToggleLike, onPress }) {
+    const { colors } = useTheme();
     const scaleAnim = useRef(new Animated.Value(0)).current;
     const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -143,15 +54,15 @@ function PostCard({ post, onToggleLike, onPress }) {
     };
 
     return (
-        <Pressable style={styles.card} onPress={onPress}>
+        <Pressable style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={onPress}>
             <View style={styles.cardMetaRow}>
                 <Text style={[styles.badge, post.badgeClass === 'blue' ? styles.badgeBlue : styles.badgePink]}>
                     {post.badge}
                 </Text>
-                <Text style={styles.cardTime}>{post.time}</Text>
+                <Text style={[styles.cardTime, { color: colors.muted }]}>{post.time}</Text>
             </View>
-            <Text style={styles.cardTitle}>{post.title}</Text>
-            <Text style={styles.cardExcerpt}>{post.excerpt}</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>{post.title}</Text>
+            <Text style={[styles.cardExcerpt, { color: colors.muted }]}>{post.excerpt}</Text>
 
             {/* Container da imagem com o coração flutuante no centro */}
             <View style={styles.imageContainer}>
@@ -170,18 +81,18 @@ function PostCard({ post, onToggleLike, onPress }) {
                 </Animated.View>
             </View>
 
-            <View style={styles.cardFooter}>
+            <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
                 <Pressable style={styles.statBtn} onPress={handleLikeClick}>
                     <MaterialCommunityIcons
                         name={post.isLiked ? 'heart' : 'heart-outline'}
                         size={18}
                         color={post.isLiked ? '#C83C59' : '#94A3B8'}
                     />
-                    <Text style={styles.statText}>{post.likes}</Text>
+                    <Text style={[styles.statText, { color: colors.muted }]}>{post.likes}</Text>
                 </Pressable>
                 <View style={styles.statBtn}>
                     <MaterialCommunityIcons name="comment-outline" size={18} color="#94A3B8" />
-                    <Text style={styles.statText}>{post.comments.length}</Text>
+                    <Text style={[styles.statText, { color: colors.muted }]}>{post.comments.length}</Text>
                 </View>
                 <View style={styles.readMoreBtn}>
                     <Text style={styles.readMore}>Ler mais</Text>
@@ -193,7 +104,9 @@ function PostCard({ post, onToggleLike, onPress }) {
 }
 
 export default function InformacoesScreen() {
-    const [posts, setPosts] = useState(INITIAL_POSTS);
+    const { colors } = useTheme();
+    const { posts, updatePost } = usePosts();
+    const { profile } = useUserProfile();
     const [detailId, setDetailId] = useState(null);
     const [commentInput, setCommentInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
@@ -217,17 +130,10 @@ export default function InformacoesScreen() {
 
     const toggleLike = (postId, e) => {
         if (e && e.stopPropagation) e.stopPropagation();
-        setPosts((prev) =>
-            prev.map((post) => {
-                if (post.id !== postId) return post;
-                const nextLiked = !post.isLiked;
-                return {
-                    ...post,
-                    isLiked: nextLiked,
-                    likes: post.likes + (nextLiked ? 1 : -1),
-                };
-            })
-        );
+        const post = posts.find((item) => item.id === postId);
+        if (!post) return;
+        const nextLiked = !post.isLiked;
+        updatePost(postId, { isLiked: nextLiked, likes: post.likes + (nextLiked ? 1 : -1) });
     };
 
     const handleDetailLike = (e) => {
@@ -261,19 +167,13 @@ export default function InformacoesScreen() {
         const now = new Date();
         const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
         const newComment = {
-            author: 'Você',
+            author: profile.name,
             avatar: 'M',
             time,
             text: commentInput.trim(),
         };
 
-        setPosts((prev) =>
-            prev.map((p) =>
-                p.id === detailPost.id
-                    ? { ...p, comments: [...p.comments, newComment] }
-                    : p
-            )
-        );
+        updatePost(detailPost.id, { comments: [...detailPost.comments, newComment] });
         setCommentInput('');
     };
 
@@ -287,34 +187,46 @@ export default function InformacoesScreen() {
                         height: 5px;
                     }
                     ::-webkit-scrollbar-track {
-                        background: #0C0D10;
+                        background: ${colors.background};
                     }
                     ::-webkit-scrollbar-thumb {
-                        background: #272A35;
+                        background: ${colors.border};
                         border-radius: 4px;
                     }
                     ::-webkit-scrollbar-thumb:hover {
-                        background: #3F4455;
+                        background: ${colors.muted};
                     }
                 `}} />
             )}
-            <View style={styles.screen}>
+            <View style={[styles.screen, { backgroundColor: colors.background }]}>
                 <ScrollView
                     style={styles.scrollView}
                     contentContainerStyle={styles.containerContent}
                     showsVerticalScrollIndicator={true}
+                    keyboardShouldPersistTaps="handled"
+                    automaticallyAdjustKeyboardInsets
                 >
                     {!detailPost ? (
                         <>
                             <View style={styles.header}>
-                                <Text style={styles.pageTitle}>Informações</Text>
-                                <Text style={styles.badgeOfficial}>Oficial Guardiã</Text>
+                                <Text style={[styles.pageTitle, { color: colors.text }]}>Informações</Text>
+                                <Text
+                                    style={[
+                                        styles.badgeOfficial,
+                                        {
+                                            backgroundColor: colors.surfaceStrong,
+                                            borderColor: colors.border,
+                                        },
+                                    ]}
+                                >
+                                    Oficial Guardiã
+                                </Text>
                             </View>
 
-                            <View style={styles.searchContainer}>
+                            <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                 <MaterialCommunityIcons name="magnify" size={18} color="#71717A" style={styles.searchIcon} />
                                 <TextInput
-                                    style={styles.searchInput}
+                                    style={[styles.searchInput, { color: colors.text }]}
                                     placeholder="Pesquisar publicações..."
                                     placeholderTextColor="#71717A"
                                     value={searchQuery}
@@ -331,10 +243,10 @@ export default function InformacoesScreen() {
                                 {CATEGORIES.map((cat) => (
                                     <Pressable
                                         key={cat}
-                                        style={[styles.filterChip, selectedCategory === cat && styles.filterChipActive]}
+                                        style={[styles.filterChip, { backgroundColor: colors.surface, borderColor: colors.border }, selectedCategory === cat && styles.filterChipActive]}
                                         onPress={() => setSelectedCategory(cat)}
                                     >
-                                        <Text style={[styles.filterChipText, selectedCategory === cat && styles.filterChipTextActive]}>
+                                        <Text style={[styles.filterChipText, { color: colors.muted }, selectedCategory === cat && styles.filterChipTextActive]}>
                                             {cat}
                                         </Text>
                                     </Pressable>
@@ -360,10 +272,10 @@ export default function InformacoesScreen() {
                     ) : (
                         <>
                             <View style={styles.detailHeader}>
-                                <Pressable style={styles.backBtn} onPress={() => setDetailId(null)}>
-                                    <MaterialCommunityIcons name="chevron-left" size={22} color="#FFFFFF" />
+                                <Pressable style={[styles.backBtn, { backgroundColor: colors.surfaceStrong }]} onPress={() => setDetailId(null)}>
+                                    <MaterialCommunityIcons name="chevron-left" size={22} color={colors.text} />
                                 </Pressable>
-                                <Text style={styles.detailHeaderTitle}>Publicação</Text>
+                                <Text style={[styles.detailHeaderTitle, { color: colors.text }]}>Publicação</Text>
                                 <View style={styles.backSpacer} />
                             </View>
 
@@ -371,22 +283,22 @@ export default function InformacoesScreen() {
                                 <Text style={[styles.badge, detailPost.badgeClass === 'blue' ? styles.badgeBlue : styles.badgePink]}>
                                     {detailPost.badge}
                                 </Text>
-                                <Text style={styles.cardTime}>{detailPost.time}</Text>
+                                <Text style={[styles.cardTime, { color: colors.muted }]}>{detailPost.time}</Text>
                             </View>
-                            <Text style={styles.detailTitle}>{detailPost.title}</Text>
+                            <Text style={[styles.detailTitle, { color: colors.text }]}>{detailPost.title}</Text>
 
                             <View style={styles.authorRow}>
                                 <View style={styles.authorAvatar}>
                                     <Text style={styles.authorAvatarText}>G</Text>
                                 </View>
                                 <View>
-                                    <Text style={styles.authorName}>Equipe Guardiã</Text>
-                                    <Text style={styles.authorRole}>Publicação oficial</Text>
+                                    <Text style={[styles.authorName, { color: colors.text }]}>Equipe Guardiã</Text>
+                                    <Text style={[styles.authorRole, { color: colors.muted }]}>Publicação oficial</Text>
                                 </View>
                             </View>
 
                             {detailPost.paragraphs.map((paragraph, idx) => (
-                                <Text key={idx} style={styles.detailParagraph}>{paragraph}</Text>
+                                <Text key={idx} style={[styles.detailParagraph, { color: colors.text }]}>{paragraph}</Text>
                             ))}
 
                             {/* Imagem de detalhes com animação de coração */}
@@ -413,32 +325,32 @@ export default function InformacoesScreen() {
                                         size={18}
                                         color={detailPost.isLiked ? '#C83C59' : '#94A3B8'}
                                     />
-                                    <Text style={styles.statText}>{detailPost.likes}</Text>
+                                    <Text style={[styles.statText, { color: colors.muted }]}>{detailPost.likes}</Text>
                                 </Pressable>
                                 <View style={styles.statBtn}>
                                     <MaterialCommunityIcons name="comment-outline" size={18} color="#94A3B8" />
-                                    <Text style={styles.statText}>{detailPost.comments.length}</Text>
+                                    <Text style={[styles.statText, { color: colors.muted }]}>{detailPost.comments.length}</Text>
                                 </View>
                             </View>
 
-                            <View style={styles.divider} />
+                            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-                            <Text style={styles.commentsTitle}>COMENTÁRIOS</Text>
+                            <Text style={[styles.commentsTitle, { color: colors.muted }]}>COMENTÁRIOS</Text>
 
                             {detailPost.comments.length === 0 ? (
-                                <Text style={styles.emptyComment}>Seja a primeira a comentar nesta publicação.</Text>
+                                <Text style={[styles.emptyComment, { color: colors.muted }]}>Seja a primeira a comentar nesta publicação.</Text>
                             ) : (
                                 detailPost.comments.map((comment, idx) => (
                                     <View key={idx} style={styles.commentItem}>
                                         <View style={styles.commentAvatar}>
                                             <Text style={styles.commentAvatarText}>{comment.avatar}</Text>
                                         </View>
-                                        <View style={styles.commentBubble}>
+                                        <View style={[styles.commentBubble, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                             <View style={styles.commentHeader}>
-                                                <Text style={styles.commentAuthor}>{comment.author}</Text>
-                                                <Text style={styles.commentTime}>{comment.time}</Text>
+                                                <Text style={[styles.commentAuthor, { color: colors.text }]}>{comment.author}</Text>
+                                                <Text style={[styles.commentTime, { color: colors.muted }]}>{comment.time}</Text>
                                             </View>
-                                            <Text style={styles.commentText}>{comment.text}</Text>
+                                            <Text style={[styles.commentText, { color: colors.text }]}>{comment.text}</Text>
                                         </View>
                                     </View>
                                 ))
@@ -448,13 +360,13 @@ export default function InformacoesScreen() {
                                 <View style={styles.commentUserAvatar}>
                                     <Text style={styles.commentUserAvatarText}>M</Text>
                                 </View>
-                                <View style={styles.commentInputWrap}>
+                                <View style={[styles.commentInputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                     <TextInput
                                         value={commentInput}
                                         onChangeText={setCommentInput}
                                         placeholder="Escreva um comentário..."
-                                        placeholderTextColor="#71717A"
-                                        style={styles.commentInput}
+                                        placeholderTextColor={colors.muted}
+                                        style={[styles.commentInput, { color: colors.text }]}
                                     />
                                     <Pressable style={styles.sendBtn} onPress={addComment}>
                                         <MaterialCommunityIcons name="send" size={15} color="#FFFFFF" />
