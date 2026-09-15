@@ -17,11 +17,16 @@
     "@react-navigation/native": "^7.0.0",
     "@react-navigation/stack": "^7.0.0",
     "axios": "^1.7.2",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
     "expo": "~57.0.20",
     "expo-asset": "~57.0.16",
     "expo-font": "~57.0.3",
     "expo-linear-gradient": "~57.0.1",
     "expo-status-bar": "~57.0.1",
+    "express": "^5.2.1",
+    "pg": "^8.23.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
@@ -32,5 +37,18 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
-  }
+  },
+  "description": "Aplicativo mobile para apoio e segurança, com fluxo de login, cadastro, emergência, perfil e suporte.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GuilhermeChedid/guardia-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/GuilhermeChedid/guardia-app/issues"
+  },
+  "homepage": "https://github.com/GuilhermeChedid/guardia-app#readme"
 }

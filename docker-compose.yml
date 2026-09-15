@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  db_guardia:
+    image: postgres:15-alpine
+    container_name: postgres_guardia
+    restart: always
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: rootpassword
+      POSTGRES_DB: guardia_db
+    ports:
+      - "5432:5432"
+    volumes:
+      # Garante que os dados não sejam perdidos se o container cair
+      - pgdata:/var/lib/postgresql/data
+      # Roda o script de criação das tabelas automaticamente
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  pgdata:
