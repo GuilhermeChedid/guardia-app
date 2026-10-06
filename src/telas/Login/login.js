@@ -16,6 +16,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import { useTheme } from '../../context/ThemeContext';
+import api from '../../services/api';
 
 const logoGuardia = require('../../assets/imagens/logo_guardia.png');
 
@@ -40,13 +41,30 @@ export default function LoginScreen() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     // Função para tratar o login e verificar credenciais de Administrador
-    const handleLogin = () => {
-        if (email.trim().toLowerCase() === 'admin@guardiao.com' && password === '1234') {
-            // Redireciona para a tela de Administrador (certifique-se de registrar essa rota no seu Navigator)
-            navigation.navigate('Admin');
-        } else {
-            // Fluxo padrão para usuários comuns
+    const handleLogin = async () => {
+        if (!email.trim() || !password) {
+            alert('Informe seu e-mail e sua senha.');
+            return;
+        }
+
+        try {
+            const response = await api.post('/auth/login', {
+                email: email.trim().toLowerCase(),
+                senha: password,
+            });
+
+            console.log('Login realizado:', response.data);
+
             navigation.navigate('Home');
+
+        } catch (error) {
+            console.error('Erro no login:', error);
+
+            const mensagem =
+                error.response?.data?.mensagem ||
+                'E-mail ou senha inválidos.';
+
+            alert(mensagem);
         }
     };
 

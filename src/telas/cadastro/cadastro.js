@@ -79,11 +79,17 @@ export default function CadastroScreen() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [pin, setPin] = useState('');
     const [confirmPin, setConfirmPin] = useState('');
+    const [termsAccepted, setTermsAccepted] = useState(false);
 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const handleRegister = async () => {
+
+    if (!termsAccepted) {
+    alert('É necessário aceitar os Termos de Uso.');
+    return;
+    }    
     if (password !== confirmPassword) {
         alert('As senhas não coincidem.');
         return;
@@ -117,6 +123,7 @@ export default function CadastroScreen() {
             bairro: neighborhood,
             cidade: city,
             estado_uf: state,
+            termos_aceitos: termsAccepted,
         });
 
         alert(response.data.message || 'Cadastro realizado com sucesso!');
@@ -375,7 +382,30 @@ export default function CadastroScreen() {
                             </View>
                         </View>
 
-                        <Text style={styles.terms}>Ao cadastrar, você concorda com nossos <Text style={styles.termsLink}>Termos de Uso</Text></Text>
+                        <Pressable
+                            style={styles.termsRow}
+                            onPress={() => setTermsAccepted((prev) => !prev)}
+                        >
+                            <View
+                                style={[
+                                    styles.checkbox,
+                                    termsAccepted && styles.checkboxChecked,
+                                ]}
+                            >
+                                {termsAccepted && (
+                                    <MaterialCommunityIcons
+                                        name="check"
+                                        size={16}
+                                        color="#FFFFFF"
+                                    />
+                                )}
+                            </View>
+
+                            <Text style={styles.terms}>
+                                 Ao cadastar você concorda com a <Text style={styles.termsLink}>Política de Privacidade</Text>
+                                {' '}*
+                            </Text>
+                        </Pressable>
 
                         <Pressable
                             style={styles.submitButton}
@@ -756,4 +786,39 @@ const styles = StyleSheet.create({
         color: '#D6395B',
         fontWeight: '600',
     },
+    termsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 24,
+    },
+
+    checkbox: {
+        width: 22,
+        height: 22,
+        borderRadius: 5,
+        borderWidth: 1,
+        borderColor: '#555',
+        backgroundColor: '#171719',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 10,
+    },
+
+    checkboxChecked: {
+        backgroundColor: '#A62B4F',
+        borderColor: '#A62B4F',
+    },
+
+    terms: {
+        flex: 1,
+        color: '#7C7C82',
+        fontSize: 13,
+        lineHeight: 20,
+    },
+
+    termsLink: {
+        color: '#D6395B',
+        fontWeight: '600',
+},
 });
