@@ -104,9 +104,12 @@ export default function LoginScreen() {
                 <View style={styles.dividerLine} />
             </View>
 
-            <Pressable onPress={() => navigation.navigate('Register')}>
-                <Text style={styles.registerText}>
-                    Nao tem uma conta? <Text style={styles.registerLink}>Cadastre-se</Text>
+            <Pressable
+                onPress={() => navigation.navigate('Register')}
+                style={{ marginTop: 20 }}
+            >
+                <Text style={{ textAlign: 'center', color: '#D6395B' }}>
+                    Não tem uma conta? Cadastre-se
                 </Text>
             </Pressable>
         </>

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
+
 import {
     View,
     Text,
@@ -58,6 +60,7 @@ export default function CadastroScreen() {
     }, []);
 
     // Form states
+    const [loading, setLoading] = useState(false);
     const [name, setName] = useState('');
     const [cpf, setCpf] = useState('');
     const [maritalStatus, setMaritalStatus] = useState('');
@@ -79,6 +82,58 @@ export default function CadastroScreen() {
 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    const handleRegister = async () => {
+    if (password !== confirmPassword) {
+        alert('As senhas não coincidem.');
+        return;
+    }
+
+    if (pin !== confirmPin) {
+        alert('Os PINs não coincidem.');
+        return;
+    }
+
+    if (pin.length !== 4) {
+        alert('O PIN deve ter 4 dígitos.');
+        return;
+    }
+
+    try {
+        setLoading(true);
+
+        const response = await api.post('/auth/register', {
+            nome: name,
+            cpf: cpf.replace(/\D/g, ''),
+            estado_civil: maritalStatus,
+            telefone: phone.replace(/\D/g, ''),
+            email: email.trim(),
+            senha: password,
+            pin_provas: pin,
+            cep: cep.replace(/\D/g, ''),
+            logradouro: street,
+            numero: number,
+            complemento: complement,
+            bairro: neighborhood,
+            cidade: city,
+            estado_uf: state,
+        });
+
+        alert(response.data.message || 'Cadastro realizado com sucesso!');
+
+        navigation.navigate('Login');
+    } catch (error) {
+        console.error('Erro no cadastro:', error);
+
+        const message =
+            error.response?.data?.message ||
+            'Não foi possível realizar o cadastro.';
+
+        alert(message);
+    } finally {
+        setLoading(false);
+    }
+};
 
     return (
         <MobileFrame backgroundColor="#0B0B0C">
@@ -322,8 +377,14 @@ export default function CadastroScreen() {
 
                         <Text style={styles.terms}>Ao cadastrar, você concorda com nossos <Text style={styles.termsLink}>Termos de Uso</Text></Text>
 
-                        <Pressable style={styles.submitButton}>
-                            <Text style={styles.submitText}>Criar minha conta</Text>
+                        <Pressable
+                            style={styles.submitButton}
+                            onPress={handleRegister}
+                            disabled={loading}
+                        >
+                            <Text style={styles.submitText}>
+                                {loading ? 'Criando conta...' : 'Criar minha conta'}
+                            </Text>
                         </Pressable>
 
                         <Pressable onPress={() => navigation.navigate('Login')}>
