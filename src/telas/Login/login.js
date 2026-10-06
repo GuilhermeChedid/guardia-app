@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     View,
     Text,
@@ -13,6 +13,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import { useTheme } from '../../context/ThemeContext';
@@ -31,6 +32,9 @@ export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [loginFeedback, setLoginFeedback] = useState(null);
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const navigationTimer = useRef(null);
 
     // Estados de Recuperação
     const [forgotEmail, setForgotEmail] = useState('');
@@ -40,6 +44,8 @@ export default function LoginScreen() {
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+    useEffect(() => () => clearTimeout(navigationTimer.current), []);
+
     // Função para tratar o login e verificar credenciais de Administrador
     const handleLogin = async () => {
         if (!email.trim() || !password) {
@@ -48,14 +54,23 @@ export default function LoginScreen() {
         }
 
         try {
+            setIsLoggingIn(true);
+            setLoginFeedback(null);
             const response = await api.post('/auth/login', {
                 email: email.trim().toLowerCase(),
                 senha: password,
             });
 
             console.log('Login realizado:', response.data);
+            await AsyncStorage.setItem('@guardia/auth_user', JSON.stringify(response.data.usuario));
 
-            navigation.navigate('Home');
+            setLoginFeedback({ type: 'success', message: 'Login realizado com sucesso!' });
+            navigationTimer.current = setTimeout(() => {
+                navigation.reset({
+                    index: 0,
+                    routes: [{ name: response.data.usuario.is_admin ? 'Admin' : 'Home' }],
+                });
+            }, 900);
 
         } catch (error) {
             console.error('Erro no login:', error);
@@ -64,7 +79,9 @@ export default function LoginScreen() {
                 error.response?.data?.mensagem ||
                 'E-mail ou senha inválidos.';
 
-            alert(mensagem);
+            setLoginFeedback({ type: 'error', message: mensagem });
+        } finally {
+            setIsLoggingIn(false);
         }
     };
 
@@ -111,9 +128,22 @@ export default function LoginScreen() {
                 <Text style={styles.forgotPassword}>Esqueci minha senha</Text>
             </Pressable>
 
+            {loginFeedback && (
+                <View style={[styles.feedback, loginFeedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError]}>
+                    <MaterialCommunityIcons
+                        name={loginFeedback.type === 'success' ? 'check-circle-outline' : 'alert-circle-outline'}
+                        size={20}
+                        color={loginFeedback.type === 'success' ? '#21864A' : '#A52D47'}
+                    />
+                    <Text style={[styles.feedbackText, { color: loginFeedback.type === 'success' ? '#176B3A' : '#A52D47' }]}>
+                        {loginFeedback.message}
+                    </Text>
+                </View>
+            )}
+
             {/* Botão de login atualizado com a validação do Admin */}
-            <Pressable style={styles.btnPrimary} onPress={handleLogin}>
-                <Text style={styles.btnText}>Entrar</Text>
+            <Pressable style={[styles.btnPrimary, isLoggingIn && styles.disabledBtn]} onPress={handleLogin} disabled={isLoggingIn}>
+                <Text style={styles.btnText}>{isLoggingIn ? 'Entrando...' : 'Entrar'}</Text>
             </Pressable>
 
             <View style={styles.divider}>
@@ -483,12 +513,38 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '500',
     },
+    feedback: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: 10,
+        marginBottom: 14,
+        borderWidth: 1,
+    },
+    feedbackSuccess: {
+        backgroundColor: '#E8F7EF',
+        borderColor: '#B8E6C9',
+    },
+    feedbackError: {
+        backgroundColor: '#FDECEF',
+        borderColor: '#F2B8C3',
+    },
+    feedbackText: {
+        flex: 1,
+        fontSize: 13,
+        fontWeight: '600',
+    },
     btnPrimary: {
         backgroundColor: '#A62B4F',
         borderRadius: 14,
         height: 54,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    disabledBtn: {
+        opacity: 0.65,
     },
     btnText: {
         color: '#FFFFFF',

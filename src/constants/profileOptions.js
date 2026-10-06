@@ -1,8 +1,8 @@
 export const MARITAL_STATUS_OPTIONS = [
-    'Solteira',
-    'Casada',
-    'Divorciada',
-    'Viúva',
+    'Solteira(o)',
+    'Casada(o)',
+    'Divorciada(o)',
+    'Viúva(o)',
     'União estável',
     'Prefiro não informar',
 ];

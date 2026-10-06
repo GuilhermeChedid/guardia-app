@@ -72,23 +72,6 @@ CREATE TABLE evidencias (
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE evidencias
-    ADD COLUMN IF NOT EXISTS dados_criptografados TEXT;
-
-CREATE TABLE IF NOT EXISTS historico_evidencias (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    evidencia_id UUID,
-    usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-    acao VARCHAR(20) NOT NULL,
-    data_hora TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS eventos_sos (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-    data_hora TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
 -- ============================================================================
 -- 6. TOKENS_RECUPERACAO (Relacionamento 1:N)
 -- ============================================================================

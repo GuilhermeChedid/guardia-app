@@ -11,6 +11,7 @@ import {
     View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import BottomNav from '../../components/BottomNav/BottomNav';
@@ -105,12 +106,19 @@ function PostCard({ post, onToggleLike, onPress }) {
 
 export default function InformacoesScreen() {
     const { colors } = useTheme();
-    const { posts, updatePost } = usePosts();
+    const { posts, updatePost, addComment: saveComment, refreshPosts } = usePosts();
     const { profile } = useUserProfile();
+    const profileInitial = profile.name?.trim().charAt(0).toUpperCase() || '?';
     const [detailId, setDetailId] = useState(null);
     const [commentInput, setCommentInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('Todas');
+
+    useFocusEffect(
+        React.useCallback(() => {
+            refreshPosts().catch((error) => console.error('Erro ao atualizar informações:', error));
+        }, [refreshPosts])
+    );
 
     // Animação para a tela de detalhes
     const detailScaleAnim = useRef(new Animated.Value(0)).current;
@@ -164,17 +172,9 @@ export default function InformacoesScreen() {
 
     const addComment = () => {
         if (!detailPost || !commentInput.trim()) return;
-        const now = new Date();
-        const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        const newComment = {
-            author: profile.name,
-            avatar: 'M',
-            time,
-            text: commentInput.trim(),
-        };
-
-        updatePost(detailPost.id, { comments: [...detailPost.comments, newComment] });
-        setCommentInput('');
+        saveComment(detailPost.id, commentInput.trim())
+            .then(() => setCommentInput(''))
+            .catch((error) => console.error('Erro ao salvar comentário:', error));
     };
 
     return (
@@ -239,7 +239,11 @@ export default function InformacoesScreen() {
                                 ) : null}
                             </View>
 
-                            <View style={styles.filterRow}>
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={styles.filterRow}
+                            >
                                 {CATEGORIES.map((cat) => (
                                     <Pressable
                                         key={cat}
@@ -251,7 +255,7 @@ export default function InformacoesScreen() {
                                         </Text>
                                     </Pressable>
                                 ))}
-                            </View>
+                            </ScrollView>
 
                             {filteredPosts.length === 0 ? (
                                 <View style={styles.emptyState}>
@@ -343,7 +347,11 @@ export default function InformacoesScreen() {
                                 detailPost.comments.map((comment, idx) => (
                                     <View key={idx} style={styles.commentItem}>
                                         <View style={styles.commentAvatar}>
-                                            <Text style={styles.commentAvatarText}>{comment.avatar}</Text>
+                                            {comment.avatarImage ? (
+                                                <Image source={{ uri: comment.avatarImage }} style={styles.commentAvatarImage} />
+                                            ) : (
+                                                <Text style={styles.commentAvatarText}>{comment.avatar || comment.author?.trim().charAt(0).toUpperCase() || '?'}</Text>
+                                            )}
                                         </View>
                                         <View style={[styles.commentBubble, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                             <View style={styles.commentHeader}>
@@ -358,7 +366,11 @@ export default function InformacoesScreen() {
 
                             <View style={styles.addCommentBox}>
                                 <View style={styles.commentUserAvatar}>
-                                    <Text style={styles.commentUserAvatarText}>M</Text>
+                                    {profile.photoUrl ? (
+                                        <Image source={{ uri: profile.photoUrl }} style={styles.commentUserAvatarImage} />
+                                    ) : (
+                                        <Text style={styles.commentUserAvatarText}>{profileInitial}</Text>
+                                    )}
                                 </View>
                                 <View style={[styles.commentInputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                     <TextInput
@@ -454,9 +466,9 @@ const styles = StyleSheet.create({
     },
     filterRow: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
         gap: 8,
         marginBottom: 16,
+        paddingRight: 16,
     },
     filterChip: {
         paddingHorizontal: 14,
@@ -698,6 +710,11 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '700',
     },
+    commentAvatarImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 15,
+    },
     commentUserAvatar: {
         width: 32,
         height: 32,
@@ -710,6 +727,11 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 12,
         fontWeight: '700',
+    },
+    commentUserAvatarImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 16,
     },
     commentBubble: {
         flex: 1,

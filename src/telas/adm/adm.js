@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     View,
@@ -14,15 +14,19 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import { POST_CATEGORIES } from '../../constants/posts';
 import { usePosts } from '../../context/PostsContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../../services/api';
 
 const logoGuardia = require('../../assets/imagens/logo_guardia.png');
 
 export default function AdminDashboardScreen() {
     const navigation = useNavigation();
     const { posts, updatePost, addPost, deletePost } = usePosts();
+    const [isAuthorized, setIsAuthorized] = useState(false);
 
     // Estados de Navegação Interna
     const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'usuarios' | 'relatorios'
@@ -40,10 +44,80 @@ export default function AdminDashboardScreen() {
     const [newPostTitle, setNewPostTitle] = useState('');
     const [newPostCategory, setNewPostCategory] = useState('Conscientização');
     const [newPostContent, setNewPostContent] = useState('');
+    const [newPostImage, setNewPostImage] = useState(null);
+    const [postImage, setPostImage] = useState(null);
     const [isNewCategoryPickerOpen, setNewCategoryPickerOpen] = useState(false);
     const [isDeleteVisible, setDeleteVisible] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [isUserDeleteVisible, setUserDeleteVisible] = useState(false);
+    const [userDeleteTarget, setUserDeleteTarget] = useState(null);
     const [selectedPostId, setSelectedPostId] = useState(null);
+    const [adminId, setAdminId] = useState(null);
+    const [usersList, setUsersList] = useState([]);
+    const [report, setReport] = useState({ total: 0, average: 0, peak: 0, daily: [] });
+    const [reportStartDate, setReportStartDate] = useState('');
+    const [reportEndDate, setReportEndDate] = useState('');
+    const [feedback, setFeedback] = useState(null);
+
+    const showFeedback = (message, type = 'success') => {
+        setFeedback({ message, type });
+        setTimeout(() => setFeedback(null), 3500);
+    };
+
+    useEffect(() => {
+        let mounted = true;
+        AsyncStorage.getItem('@guardia/auth_user')
+            .then((storedUser) => {
+                const user = storedUser ? JSON.parse(storedUser) : null;
+                if (!user?.is_admin) {
+                    navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+                    return;
+                }
+                if (mounted) setIsAuthorized(true);
+            })
+            .catch(() => {
+                navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+            });
+        return () => {
+            mounted = false;
+        };
+    }, [navigation]);
+
+    const loadAdminData = async (id = adminId, period = selectedPeriod, startDate = reportStartDate, endDate = reportEndDate) => {
+        if (!id) return;
+        try {
+            const days = period === '12 meses' ? 365 : period === '30 dias' ? 30 : 7;
+            const [usersResponse, reportResponse] = await Promise.all([
+                api.get(`/admin/users?admin_id=${id}`),
+                api.get(`/admin/reports/sos?admin_id=${id}&days=${days}${startDate ? `&start_date=${startDate.split('/').reverse().join('-')}` : ''}${endDate ? `&end_date=${endDate.split('/').reverse().join('-')}` : ''}`),
+            ]);
+            setUsersList(usersResponse.data.users);
+            setReport(reportResponse.data.report);
+        } catch (error) {
+            Alert.alert('Erro', error.response?.data?.message || 'Não foi possível carregar os dados administrativos.');
+        }
+    };
+
+    useEffect(() => {
+        AsyncStorage.getItem('@guardia/auth_user')
+            .then((stored) => {
+                const user = stored ? JSON.parse(stored) : null;
+                if (user?.is_admin) {
+                    setAdminId(user.id);
+                    loadAdminData(user.id);
+                }
+            })
+            .catch((error) => console.error('Erro ao carregar sessão administrativa:', error));
+    }, []);
+
+    if (!isAuthorized) {
+        return (
+            <View style={styles.authorizationLoading}>
+                <MaterialCommunityIcons name="shield-lock-outline" size={42} color="#C83C59" />
+                <Text style={styles.authorizationLoadingText}>Verificando acesso administrativo...</Text>
+            </View>
+        );
+    }
 
     const selectedPost = posts.find((post) => post.id === selectedPostId) || posts[0];
 
@@ -52,6 +126,7 @@ export default function AdminDashboardScreen() {
         setPostTitle(post.title);
         setPostCategory(post.badge);
         setPostContent(post.paragraphs.join('\n\n'));
+        setPostImage(post.image);
         setCategoryPickerOpen(false);
         setSubView('editar');
     };
@@ -64,48 +139,87 @@ export default function AdminDashboardScreen() {
         setSubView('visualizar');
     };
 
-    const saveEditedPost = () => {
+    const saveEditedPost = async () => {
         if (!selectedPost) return;
 
         const paragraphs = postContent.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
-        updatePost(selectedPost.id, {
-            title: postTitle.trim() || selectedPost.title,
-            badge: postCategory,
-            badgeClass: postCategory === 'Direitos' ? 'blue' : 'pink',
-            excerpt: (paragraphs[0] || selectedPost.excerpt).slice(0, 140),
-            paragraphs: paragraphs.length > 0 ? paragraphs : selectedPost.paragraphs,
-        });
-        setSubView(null);
+        try {
+            await updatePost(selectedPost.id, {
+                title: postTitle.trim() || selectedPost.title,
+                badge: postCategory,
+                badgeClass: postCategory === 'Direitos' ? 'blue' : 'pink',
+                excerpt: (paragraphs[0] || selectedPost.excerpt).slice(0, 140),
+                paragraphs: paragraphs.length > 0 ? paragraphs : selectedPost.paragraphs,
+                image: postImage || selectedPost.image,
+            });
+            setSubView(null);
+            showFeedback('Post editado com sucesso!');
+        } catch (error) {
+            showFeedback(error.response?.data?.message || 'Não foi possível editar o post.', 'error');
+        }
     };
 
     const openNewPost = () => {
         setNewPostTitle('');
         setNewPostCategory('Conscientização');
         setNewPostContent('');
+        setNewPostImage(null);
         setNewCategoryPickerOpen(false);
         setSubView('novo');
     };
 
-    const publishNewPost = () => {
+    const publishNewPost = async () => {
         const title = newPostTitle.trim();
         const paragraphs = newPostContent.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
-        if (!title || paragraphs.length === 0) return;
+        if (!title || paragraphs.length === 0) {
+            showFeedback('Preencha o título e o conteúdo do post.', 'error');
+            return;
+        }
 
-        addPost({
-            id: Date.now(),
-            badge: newPostCategory,
-            badgeClass: newPostCategory === 'Direitos' ? 'blue' : 'pink',
-            time: 'Agora',
-            title,
-            excerpt: paragraphs[0].slice(0, 140),
-            image: posts[0]?.image,
-            paragraphs,
-            likes: 0,
-            isLiked: false,
-            comments: [],
+        try {
+            await addPost({
+                id: Date.now(),
+                badge: newPostCategory,
+                badgeClass: newPostCategory === 'Direitos' ? 'blue' : 'pink',
+                time: 'Agora',
+                title,
+                excerpt: paragraphs[0].slice(0, 140),
+                image: newPostImage || posts[0]?.image,
+                paragraphs,
+                likes: 0,
+                isLiked: false,
+                comments: [],
+            });
+            showFeedback('Post criado com sucesso!');
+            setSubView(null);
+        } catch (error) {
+            showFeedback(error.response?.data?.message || 'Não foi possível criar o post.', 'error');
+        }
+    };
+
+    const pickPostImage = async (forNewPost = true) => {
+        const result = await DocumentPicker.getDocumentAsync({
+            type: ['image/jpeg', 'image/png'],
+            copyToCacheDirectory: true,
+            multiple: false,
         });
-        Alert.alert('Sucesso', 'Post criado com sucesso!');
-        setSubView(null);
+        if (result.canceled) return;
+
+        const asset = result.assets?.[0];
+        const extension = asset?.name?.split('.').pop()?.toLowerCase();
+        const allowedExtensions = ['jpg', 'jpeg', 'png'];
+        if (!asset || !allowedExtensions.includes(extension)) {
+            showFeedback('Formato inválido. Envie uma imagem JPG, JPEG ou PNG de até 5 MB.', 'error');
+            return;
+        }
+        if (asset.size && asset.size > 5 * 1024 * 1024) {
+            showFeedback('Imagem muito grande. O tamanho máximo permitido é 5 MB.', 'error');
+            return;
+        }
+
+        if (forNewPost) setNewPostImage(asset.uri);
+        else setPostImage(asset.uri);
+        showFeedback('Imagem selecionada com sucesso!');
     };
 
     const openDeletePost = (post) => {
@@ -113,12 +227,17 @@ export default function AdminDashboardScreen() {
         setDeleteVisible(true);
     };
 
-    const confirmDeletePost = () => {
+    const confirmDeletePost = async () => {
         if (!deleteTarget) return;
-        deletePost(deleteTarget.id);
-        setDeleteVisible(false);
-        setDeleteTarget(null);
-        setSubView(null);
+        try {
+            await deletePost(deleteTarget.id);
+            setDeleteVisible(false);
+            setDeleteTarget(null);
+            setSubView(null);
+            showFeedback('Post excluído com sucesso!');
+        } catch (error) {
+            showFeedback(error.response?.data?.message || 'Não foi possível excluir o post.', 'error');
+        }
     };
 
     // ==========================================
@@ -173,21 +292,29 @@ export default function AdminDashboardScreen() {
     // ==========================================
     // RENDER: TELA DE USUÁRIOS
     // ==========================================
-    const usersList = [
-        { initials: 'MC', name: 'Maria Clara Santos', email: 'mariaclara@email.com', info: 'São Paulo · 10 ago 2026' },
-        { initials: 'AL', name: 'Ana Lima', email: 'ana.lima@email.com', info: 'Rio de Janeiro · 08 ago 2026' },
-        { initials: 'BA', name: 'Beatriz Alves', email: 'beatriz.a@email.com', info: 'Belo Horizonte · 07 ago 2026' },
-        { initials: 'CR', name: 'Camila Rocha', email: 'camila.r@email.com', info: 'Curitiba · 05 ago 2026' },
-        { initials: 'FM', name: 'Fernanda Melo', email: 'fernanda.m@email.com', info: 'Recife · 01 ago 2026' },
-        { initials: 'GN', name: 'Gabriela Nunes', email: 'gabi.n@email.com', info: 'Fortaleza · 28 jul 2026' },
-    ];
-
     const filteredUsers = usersList.filter((user) => {
         const searchTerm = searchUser.trim().toLowerCase();
         if (!searchTerm) return true;
 
-        return `${user.name} ${user.email} ${user.info}`.toLowerCase().includes(searchTerm);
+        return `${user.nome} ${user.email} ${user.cidade || ''}`.toLowerCase().includes(searchTerm);
     });
+
+    const removeUser = (user) => {
+        setUserDeleteTarget(user);
+        setUserDeleteVisible(true);
+    };
+
+    const confirmDeleteUser = async () => {
+        if (!userDeleteTarget) return;
+        try {
+            await api.delete(`/admin/users/${userDeleteTarget.id}`, { data: { admin_id: adminId } });
+            setUsersList((current) => current.filter((item) => item.id !== userDeleteTarget.id));
+            setUserDeleteVisible(false);
+            setUserDeleteTarget(null);
+        } catch (error) {
+            Alert.alert('Erro', error.response?.data?.message || 'Não foi possível excluir o usuário.');
+        }
+    };
 
     const renderUsersTab = () => (
         <View style={styles.tabContentContainer}>
@@ -204,16 +331,16 @@ export default function AdminDashboardScreen() {
             </View>
 
             {filteredUsers.map((user) => (
-                <View key={user.email} style={styles.userCard}>
+                <View key={user.id} style={styles.userCard}>
                     <View style={styles.userAvatarBox}>
-                        <Text style={styles.userAvatarText}>{user.initials}</Text>
+                        <Text style={styles.userAvatarText}>{user.nome.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</Text>
                     </View>
                     <View style={styles.userInfoBox}>
-                        <Text style={styles.userName}>{user.name}</Text>
+                        <Text style={styles.userName}>{user.nome}</Text>
                         <Text style={styles.userEmail}>{user.email}</Text>
-                        <Text style={styles.userMeta}>{user.info}</Text>
+                        <Text style={styles.userMeta}>{user.cidade || 'Cidade não informada'} · {new Date(user.criado_em).toLocaleDateString('pt-BR')}</Text>
                     </View>
-                    <Pressable style={styles.userDeleteBtn}>
+                    <Pressable style={styles.userDeleteBtn} onPress={() => removeUser(user)} disabled={user.is_admin}>
                         <MaterialCommunityIcons name="delete-outline" size={18} color="#888" />
                     </Pressable>
                 </View>
@@ -233,7 +360,7 @@ export default function AdminDashboardScreen() {
                     <Pressable
                         key={p}
                         style={[styles.filterPill, selectedPeriod === p && styles.filterPillActive]}
-                        onPress={() => setSelectedPeriod(p)}
+                        onPress={() => { setSelectedPeriod(p); loadAdminData(adminId, p); }}
                     >
                         <Text style={[styles.filterPillText, selectedPeriod === p && styles.filterPillTextActive]}>
                             {p}
@@ -247,13 +374,13 @@ export default function AdminDashboardScreen() {
                 <View style={styles.periodInputsRow}>
                     <View style={styles.periodInputWrapper}>
                         <Text style={styles.periodInputPlaceholder}>De</Text>
-                        <Text style={styles.periodDateVal}>dd/mm/aaaa</Text>
+                        <TextInput value={reportStartDate} onChangeText={setReportStartDate} placeholder="dd/mm/aaaa" placeholderTextColor="#777" style={styles.periodDateInput} keyboardType="numeric" />
                     </View>
                     <View style={styles.periodInputWrapper}>
                         <Text style={styles.periodInputPlaceholder}>Até</Text>
-                        <Text style={styles.periodDateVal}>dd/mm/aaaa</Text>
+                        <TextInput value={reportEndDate} onChangeText={setReportEndDate} placeholder="dd/mm/aaaa" placeholderTextColor="#777" style={styles.periodDateInput} keyboardType="numeric" />
                     </View>
-                    <Pressable style={styles.applyBtn}>
+                    <Pressable style={styles.applyBtn} onPress={() => loadAdminData(adminId, selectedPeriod, reportStartDate, reportEndDate)}>
                         <Text style={styles.applyBtnText}>Aplicar</Text>
                     </Pressable>
                 </View>
@@ -263,17 +390,17 @@ export default function AdminDashboardScreen() {
             <View style={styles.metricsRow}>
                 <View style={styles.metricCard}>
                     <Text style={styles.metricIcon}>📞</Text>
-                    <Text style={styles.metricNumber}>37</Text>
+                    <Text style={styles.metricNumber}>{report.total}</Text>
                     <Text style={styles.metricLabel}>Total SOS</Text>
                 </View>
                 <View style={styles.metricCard}>
                     <Text style={styles.metricIcon}>⚡</Text>
-                    <Text style={styles.metricNumber}>5.3</Text>
+                    <Text style={styles.metricNumber}>{report.average}</Text>
                     <Text style={styles.metricLabel}>Média/dia</Text>
                 </View>
                 <View style={styles.metricCard}>
                     <Text style={styles.metricIcon}>📈</Text>
-                    <Text style={styles.metricNumber}>9</Text>
+                    <Text style={styles.metricNumber}>{report.peak}</Text>
                     <Text style={styles.metricLabel}>Pico</Text>
                 </View>
             </View>
@@ -281,25 +408,17 @@ export default function AdminDashboardScreen() {
             <View style={styles.chartCard}>
                 <Text style={styles.chartTitle}>Acionamentos por período</Text>
                 <View style={styles.barsContainer}>
-                    {[
-                        { day: 'qua', height: 30 },
-                        { day: 'qui', height: 45 },
-                        { day: 'sex', height: 35 },
-                        { day: 'sáb', height: 65 },
-                        { day: 'dom', height: 85, highlight: true, count: 9 },
-                        { day: 'seg', height: 60 },
-                        { day: 'fer', height: 15 },
-                    ].map((bar, i) => (
+                    {(report.daily || []).map((item, i) => (
                         <View key={i} style={styles.barCol}>
-                            {bar.highlight && <Text style={styles.barPeakLabel}>{bar.count}</Text>}
+                            {item.count === report.peak && <Text style={styles.barPeakLabel}>{item.count}</Text>}
                             <View
                                 style={[
                                     styles.barFill,
-                                    { height: bar.height },
-                                    bar.highlight && styles.barFillHighlight,
+                                    { height: report.peak ? Math.max(8, (item.count / report.peak) * 85) : 8 },
+                                    item.count === report.peak && styles.barFillHighlight,
                                 ]}
                             />
-                            <Text style={styles.barDayText}>{bar.day}</Text>
+                            <Text style={styles.barDayText}>{new Date(item.day).toLocaleDateString('pt-BR', { weekday: 'short' })}</Text>
                         </View>
                     ))}
                 </View>
@@ -369,11 +488,17 @@ export default function AdminDashboardScreen() {
 
             <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>IMAGEM *</Text>
-                <View style={styles.imageUploadBox}>
+                <Pressable style={styles.imageUploadBox} onPress={() => pickPostImage(true)}>
                     <Text style={{ fontSize: 24, marginBottom: 8 }}>🖼️</Text>
-                    <Text style={styles.uploadTitle}>Toque para selecionar foto</Text>
-                    <Text style={styles.uploadSubtitle}>JPG, PNG ou WebP</Text>
-                </View>
+                    {newPostImage ? (
+                        <Image source={{ uri: newPostImage }} style={styles.uploadPreviewImage} resizeMode="cover" />
+                    ) : (
+                        <>
+                            <Text style={styles.uploadTitle}>Toque para selecionar foto</Text>
+                            <Text style={styles.uploadSubtitle}>JPG, JPEG ou PNG · máximo 5 MB</Text>
+                        </>
+                    )}
+                </Pressable>
             </View>
 
             <Pressable style={styles.btnPrimary} onPress={publishNewPost}>
@@ -436,12 +561,12 @@ export default function AdminDashboardScreen() {
 
             <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>IMAGEM *</Text>
-                <View style={styles.imagePreviewContainer}>
-                    <Image source={{ uri: selectedPost?.image }} style={styles.previewImageFull} resizeMode="cover" />
-                    <Pressable style={styles.removeImageBadge}>
+                <Pressable style={styles.imagePreviewContainer} onPress={() => pickPostImage(false)}>
+                    <Image source={{ uri: postImage || selectedPost?.image }} style={styles.previewImageFull} resizeMode="cover" />
+                    <View style={styles.removeImageBadge}>
                         <Text style={{ color: '#FFF', fontSize: 12 }}>✕</Text>
-                    </Pressable>
-                </View>
+                    </View>
+                </Pressable>
             </View>
 
             <Pressable style={styles.btnPrimary} onPress={saveEditedPost}>
@@ -530,6 +655,16 @@ export default function AdminDashboardScreen() {
 
     return (
         <MobileFrame backgroundColor="#0B0B0C" useThemeColors={false}>
+            {feedback && (
+                <View style={[styles.feedbackBanner, feedback.type === 'error' && styles.feedbackBannerError]}>
+                    <MaterialCommunityIcons
+                        name={feedback.type === 'error' ? 'alert-circle-outline' : 'check-circle-outline'}
+                        size={20}
+                        color="#FFFFFF"
+                    />
+                    <Text style={styles.feedbackText}>{feedback.message}</Text>
+                </View>
+            )}
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.keyboardView}
@@ -567,11 +702,11 @@ export default function AdminDashboardScreen() {
                                 {/* Summary KPI Cards */}
                                 <View style={styles.kpiRow}>
                                     <View style={styles.kpiCard}>
-                                        <Text style={[styles.kpiNumber, { color: '#E8638B' }]}>7</Text>
+                                        <Text style={[styles.kpiNumber, { color: '#E8638B' }]}>{posts.length}</Text>
                                         <Text style={styles.kpiLabel}>Publicações</Text>
                                     </View>
                                     <View style={styles.kpiCard}>
-                                        <Text style={[styles.kpiNumber, { color: '#64B5F6' }]}>6</Text>
+                                        <Text style={[styles.kpiNumber, { color: '#64B5F6' }]}>{usersList.length}</Text>
                                         <Text style={styles.kpiLabel}>Usuários</Text>
                                     </View>
                                 </View>
@@ -635,11 +770,47 @@ export default function AdminDashboardScreen() {
                     </View>
                 </View>
             </Modal>
+
+            <Modal visible={isUserDeleteVisible} transparent animationType="fade" onRequestClose={() => setUserDeleteVisible(false)}>
+                <View style={styles.deleteModalOverlay}>
+                    <View style={styles.deleteDialog}>
+                        <View style={styles.deleteDialogIcon}>
+                            <MaterialCommunityIcons name="account-remove-outline" size={30} color="#EF5350" />
+                        </View>
+                        <Text style={styles.deleteDialogTitle}>Excluir usuário?</Text>
+                        <Text style={styles.deleteDialogText}>
+                            Tem certeza que deseja excluir <Text style={{ fontWeight: '700', color: '#EAEAEA' }}>{userDeleteTarget?.nome}</Text>? Todos os dados associados serão removidos permanentemente.
+                        </Text>
+                        <View style={styles.deleteDialogActions}>
+                            <Pressable style={styles.deleteCancelBtn} onPress={() => setUserDeleteVisible(false)}>
+                                <Text style={styles.deleteCancelText}>Cancelar</Text>
+                            </Pressable>
+                            <Pressable style={styles.deleteConfirmBtn} onPress={confirmDeleteUser}>
+                                <Text style={styles.deleteConfirmText}>Sim, excluir</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </MobileFrame>
     );
 }
 
 const styles = StyleSheet.create({
+    authorizationLoading: {
+        flex: 1,
+        minHeight: '100%',
+        backgroundColor: '#0C0D10',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 24,
+    },
+    authorizationLoadingText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        marginTop: 14,
+        textAlign: 'center',
+    },
     keyboardView: { flex: 1 },
     scrollGrow: { flexGrow: 1 },
     appContainer: { flex: 1, backgroundColor: '#0B0B0C' },
@@ -709,6 +880,9 @@ const styles = StyleSheet.create({
     deleteCancelText: { color: '#B0B0B5', fontSize: 13, fontWeight: '600' },
     deleteConfirmBtn: { flex: 1, borderRadius: 10, backgroundColor: '#B83B4A', paddingVertical: 12, alignItems: 'center' },
     deleteConfirmText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+    feedbackBanner: { position: 'absolute', top: 16, left: 16, right: 16, zIndex: 20, elevation: 20, minHeight: 48, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: '#2E8B57', flexDirection: 'row', alignItems: 'center', gap: 8 },
+    feedbackBannerError: { backgroundColor: '#B83B4A' },
+    feedbackText: { flex: 1, color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
     tabContentContainer: { width: '100%' },
     sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     sectionTitle: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', marginBottom: 12 },
@@ -761,6 +935,7 @@ const styles = StyleSheet.create({
     periodInputWrapper: { flex: 1, backgroundColor: '#111', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: '#222' },
     periodInputPlaceholder: { fontSize: 10, color: '#555', marginBottom: 2 },
     periodDateVal: { fontSize: 11, color: '#888' },
+    periodDateInput: { color: '#EAEAEA', fontSize: 11, padding: 0, marginTop: 4 },
     applyBtn: { backgroundColor: '#222', paddingHorizontal: 12, paddingVertical: 12, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
     applyBtnText: { color: '#CCC', fontSize: 12, fontWeight: '600' },
     metricsRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
@@ -784,6 +959,7 @@ const styles = StyleSheet.create({
     selectDropdown: { backgroundColor: '#171719', borderRadius: 10, height: 46, paddingHorizontal: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#222' },
     formTextArea: { backgroundColor: '#171719', borderRadius: 10, padding: 12, color: '#FFF', fontSize: 13, borderWidth: 1, borderColor: '#222', height: 100, textAlignVertical: 'top' },
     imageUploadBox: { backgroundColor: '#171719', borderRadius: 10, height: 110, borderWidth: 1, borderColor: '#222', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
+    uploadPreviewImage: { width: '100%', height: '100%', borderRadius: 10 },
     uploadTitle: { fontSize: 12, color: '#AAA', fontWeight: '500', marginBottom: 2 },
     uploadSubtitle: { fontSize: 10, color: '#666' },
     btnPrimary: { backgroundColor: '#A62B4F', borderRadius: 12, height: 48, justifyContent: 'center', alignItems: 'center', marginTop: 10 },

@@ -6,5 +6,23 @@
   ],
   "android": {
     "softwareKeyboardLayoutMode": "resize"
+  },
+  "extra": {
+    "eas": {
+      "projectId": "855360c5-99a6-436c-a7e2-97e814995f75"
+    }
+  },
+  "expo": {
+    "android": {
+      "package": "com.guilhermechedid.guardiaapp"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "855360c5-99a6-436c-a7e2-97e814995f75"
+      }
+    },
+    "plugins": [
+      "expo-sharing"
+    ]
   }
 }

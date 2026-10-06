@@ -17,6 +17,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import { useTheme } from '../../context/ThemeContext';
 import { MARITAL_STATUS_OPTIONS } from '../../constants/profileOptions';
+import { cepMask, cpfMask, phoneMask } from '../../utils/masks';
+import { validateFullName } from '../../utils/nameValidation';
 
 const BRAZILIAN_STATES = [
     ['AC', 'Acre'], ['AL', 'Alagoas'], ['AP', 'Amapá'], ['AM', 'Amazonas'],
@@ -84,7 +86,45 @@ export default function CadastroScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+    const handleCepChange = async (value) => {
+        const formattedCep = cepMask(value);
+        const cepDigits = formattedCep.replace(/\D/g, '');
+
+        setCep(formattedCep);
+
+        if (cepDigits.length !== 8) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`);
+            if (!response.ok) {
+                throw new Error(`Consulta de CEP retornou HTTP ${response.status}`);
+            }
+
+            const address = await response.json();
+            if (address.erro) {
+                alert('CEP não encontrado.');
+                return;
+            }
+
+            setStreet(address.logradouro || '');
+            setNeighborhood(address.bairro || '');
+            setCity(address.localidade || '');
+            setState(address.uf || '');
+        } catch (error) {
+            console.error('Erro ao consultar CEP:', error);
+            alert('Não foi possível consultar o CEP. Verifique sua conexão e tente novamente.');
+        }
+    };
+
     const handleRegister = async () => {
+
+    const nameError = validateFullName(name);
+    if (nameError) {
+        alert(nameError);
+        return;
+    }
 
     if (!termsAccepted) {
     alert('É necessário aceitar os Termos de Uso.');
@@ -182,14 +222,15 @@ export default function CadastroScreen() {
                             placeholder="000.000.000-00"
                             icon="card-account-details-outline"
                             value={cpf}
-                            onChangeText={setCpf}
+                            onChangeText={(value) => setCpf(cpfMask(value))}
                             keyboardType="numeric"
+                            maxLength={14}
                         />
                         <View style={styles.group}>
                             <Text style={styles.label}>Estado civil <Text style={styles.required}>*</Text></Text>
                             <Pressable style={styles.inputWrap} onPress={() => setMaritalPickerVisible(true)}>
                                 <MaterialCommunityIcons name="heart-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
-                                <Text style={[styles.input, { color: maritalStatus ? colors.text : colors.muted }]}>
+                                <Text style={[styles.selectorValue, { color: maritalStatus ? colors.text : colors.muted }]}>
                                     {maritalStatus || 'Selecione'}
                                 </Text>
                                 <MaterialCommunityIcons name="chevron-down" size={18} color="#8B8B93" style={styles.iconRight} />
@@ -200,8 +241,9 @@ export default function CadastroScreen() {
                             placeholder="(11) 99999-0000"
                             icon="phone-outline"
                             value={phone}
-                            onChangeText={setPhone}
+                            onChangeText={(value) => setPhone(phoneMask(value))}
                             keyboardType="phone-pad"
+                            maxLength={15}
                         />
 
                         <Section title="ENDEREÇO" />
@@ -211,8 +253,9 @@ export default function CadastroScreen() {
                             placeholder="00000-000"
                             icon="map-marker-outline"
                             value={cep}
-                            onChangeText={setCep}
+                            onChangeText={handleCepChange}
                             keyboardType="numeric"
+                            maxLength={9}
                         />
                         <InputRow
                             label="Logradouro"
@@ -265,13 +308,12 @@ export default function CadastroScreen() {
                                 <View style={styles.inputWrap}>
                                     <MaterialCommunityIcons name="map-marker-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                     <TextInput
-                                        style={[styles.input, { paddingRight: 30 }]}
+                                        style={styles.input}
                                         placeholder="Selecione"
                                         placeholderTextColor="#555"
                                         value={city}
                                         onChangeText={setCity}
                                     />
-                                    <MaterialCommunityIcons name="chevron-down" size={18} color="#8B8B93" style={styles.iconRight} />
                                 </View>
                             </View>
                             <View style={styles.stateGroup}>
@@ -313,11 +355,26 @@ export default function CadastroScreen() {
                                 </Pressable>
                             </View>
                             <View style={styles.rules}>
-                                <Text style={styles.rule}>• Mínimo 8 caracteres</Text>
-                                <Text style={styles.rule}>• 1 letra maiúscula</Text>
-                                <Text style={styles.rule}>• 1 letra minúscula</Text>
-                                <Text style={styles.rule}>• 1 número</Text>
-                                <Text style={styles.rule}>• 1 caractere especial (!@#$%&*_-)</Text>
+                                <PasswordRule
+                                    label="Mínimo 8 caracteres"
+                                    valid={password.length >= 8}
+                                />
+                                <PasswordRule
+                                    label="1 letra maiúscula"
+                                    valid={/[A-Z]/.test(password)}
+                                />
+                                <PasswordRule
+                                    label="1 letra minúscula"
+                                    valid={/[a-z]/.test(password)}
+                                />
+                                <PasswordRule
+                                    label="1 número"
+                                    valid={/\d/.test(password)}
+                                />
+                                <PasswordRule
+                                    label="1 caractere especial (!@#$%&*_.-)"
+                                    valid={/[!@#$%&*_.-]/.test(password)}
+                                />
                             </View>
                         </View>
 
@@ -372,7 +429,7 @@ export default function CadastroScreen() {
                                 <TextInput
                                     style={styles.input}
                                     secureTextEntry
-                                    placeholder="Repito o PIN"
+                                    placeholder="Repita o PIN"
                                     placeholderTextColor="#555"
                                     keyboardType="numeric"
                                     maxLength={4}
@@ -519,6 +576,19 @@ function InputRow({ label, placeholder, icon, right, value, onChangeText, keyboa
                 />
                 {right ? <MaterialCommunityIcons name={right} size={18} color="#8B8B93" style={styles.iconRight} /> : null}
             </View>
+        </View>
+    );
+}
+
+function PasswordRule({ label, valid }) {
+    return (
+        <View style={styles.ruleRow}>
+            <MaterialCommunityIcons
+                name={valid ? 'check-circle' : 'circle-outline'}
+                size={15}
+                color={valid ? '#4CAF50' : '#7C7C82'}
+            />
+            <Text style={[styles.rule, valid && styles.ruleValid]}>{label}</Text>
         </View>
     );
 }
@@ -679,6 +749,15 @@ const styles = StyleSheet.create({
         paddingRight: 46,
         fontSize: 14,
     },
+    selectorValue: {
+        flex: 1,
+        height: 52,
+        paddingLeft: 46,
+        paddingRight: 46,
+        fontSize: 14,
+        lineHeight: 52,
+        textAlignVertical: 'center',
+    },
     pinInfoBox: {
         backgroundColor: 'rgba(91, 27, 44, 0.25)',
         borderWidth: 1,
@@ -748,9 +827,17 @@ const styles = StyleSheet.create({
         paddingLeft: 4,
         gap: 4,
     },
+    ruleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
     rule: {
         color: '#7C7C82',
         fontSize: 12,
+    },
+    ruleValid: {
+        color: '#4CAF50',
     },
     terms: {
         marginTop: 6,

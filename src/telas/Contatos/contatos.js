@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
     Animated,
     FlatList,
@@ -9,26 +9,25 @@ import {
     TextInput,
     View,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    Linking
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import BottomNav from '../../components/BottomNav/BottomNav';
 import { useTheme } from '../../context/ThemeContext';
-
-const INITIAL_CONTACTS = [
-    { id: '1', initials: 'AS', name: 'Ana Souza', relation: 'Mãe', phone: '(11) 99234-5678', color: '#C83C59' },
-    { id: '2', initials: 'CR', name: 'Camila Reis', relation: 'Irmã', phone: '(11) 98765-4321', color: '#2C2C2E' },
-    { id: '3', initials: 'DM', name: 'Delegacia da Mulher', relation: 'Emergência', phone: '180', color: '#3A70B6' },
-    { id: '4', initials: 'FL', name: 'Fernanda Lima', relation: 'Amiga', phone: '(21) 97654-3210', color: '#C83C59' },
-];
+import { useUserProfile } from '../../context/UserProfileContext';
+import api from '../../services/api';
+import { phoneMask } from '../../utils/masks';
 
 export default function ContatosScreen() {
     const navigation = useNavigation();
     const { colors } = useTheme();
-    const [contacts, setContacts] = useState(INITIAL_CONTACTS);
+    const { refreshProfile } = useUserProfile();
+    const [contacts, setContacts] = useState([]);
 
     // Modal states
     const [isAddVisible, setAddVisible] = useState(false);
@@ -39,8 +38,97 @@ export default function ContatosScreen() {
     // Selection and Form states
     const [selectedContact, setSelectedContact] = useState(null);
     const [formData, setFormData] = useState({ name: '', relation: '', phone: '' });
+    const [userId, setUserId] = useState(null);
+    const [feedback, setFeedback] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isRemoving, setIsRemoving] = useState(false);
     const optionsSheetAnim = useRef(new Animated.Value(320)).current;
     const alertScaleAnim = useRef(new Animated.Value(1)).current;
+    const feedbackTimer = useRef(null);
+
+    const showFeedback = useCallback((message, type = 'success') => {
+        setFeedback({ message, type });
+        clearTimeout(feedbackTimer.current);
+        feedbackTimer.current = setTimeout(() => setFeedback(null), 3500);
+    }, []);
+
+    const loadContacts = useCallback(async () => {
+        try {
+            const storedUser = await AsyncStorage.getItem('@guardia/auth_user');
+            const user = storedUser ? JSON.parse(storedUser) : null;
+            if (!user?.id) return;
+            setUserId(user.id);
+            const response = await api.get(`/auth/contacts/${user.id}`);
+            setContacts(response.data.contacts.map((contact) => ({
+                ...contact,
+                initials: contact.nome.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase(),
+                name: contact.nome,
+                relation: contact.relacao,
+                phone: contact.telefone,
+                color: '#C83C59',
+            })));
+        } catch (error) {
+            console.error('Erro ao carregar contatos:', error);
+            showFeedback(error.response?.data?.message || 'Não foi possível carregar os contatos.', 'error');
+        }
+    }, [showFeedback]);
+
+    useFocusEffect(useCallback(() => {
+        loadContacts();
+    }, [loadContacts]));
+
+    const saveContact = async (isEdit = false) => {
+        if (!userId || !formData.name.trim() || !formData.relation.trim() || !formData.phone.trim()) {
+            showFeedback('Preencha todos os campos do contato.', 'error');
+            return;
+        }
+        try {
+            setIsSaving(true);
+            const path = isEdit
+                ? `/auth/contacts/${userId}/${selectedContact.id}`
+                : `/auth/contacts/${userId}`;
+            const response = await (isEdit ? api.put(path, {
+                nome: formData.name, relacao: formData.relation, telefone: formData.phone,
+            }) : api.post(path, {
+                nome: formData.name, relacao: formData.relation, telefone: formData.phone,
+            }));
+            const contact = response.data.contact;
+            const mapped = {
+                ...contact,
+                initials: contact.nome.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase(),
+                name: contact.nome, relation: contact.relacao, phone: contact.telefone, color: '#C83C59',
+            };
+            setContacts((current) => isEdit
+                ? current.map((item) => item.id === mapped.id ? mapped : item)
+                : [...current, mapped]);
+            setAddVisible(false);
+            setEditVisible(false);
+            setFormData({ name: '', relation: '', phone: '' });
+            refreshProfile();
+            showFeedback(isEdit ? 'Contato atualizado com sucesso.' : 'Contato criado com sucesso.');
+        } catch (error) {
+            showFeedback(error.response?.data?.message || 'Não foi possível salvar o contato.', 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const removeContact = async () => {
+        try {
+            setIsRemoving(true);
+            await api.delete(`/auth/contacts/${userId}/${selectedContact.id}`);
+            setContacts((current) => current.filter((item) => item.id !== selectedContact.id));
+            setRemoveVisible(false);
+            refreshProfile();
+            showFeedback('Contato excluído com sucesso.');
+        } catch (error) {
+            showFeedback(error.response?.data?.message || 'Não foi possível remover o contato.', 'error');
+        } finally {
+            setIsRemoving(false);
+        }
+    };
+
+    React.useEffect(() => () => clearTimeout(feedbackTimer.current), []);
 
     const handleAlertPressIn = () => {
         Animated.spring(alertScaleAnim, {
@@ -95,6 +183,27 @@ export default function ContatosScreen() {
         setTimeout(() => setRemoveVisible(true), 300);
     };
 
+    const callContact = async (contact) => {
+        const phone = String(contact.phone || '').replace(/\D/g, '');
+        if (!phone) {
+            showFeedback('Este contato não possui um telefone válido.', 'error');
+            return;
+        }
+
+        const phoneUrl = `tel:${phone}`;
+        try {
+            const canOpen = await Linking.canOpenURL(phoneUrl);
+            if (!canOpen) {
+                showFeedback('Não foi possível abrir o aplicativo de telefone neste dispositivo.', 'error');
+                return;
+            }
+            await Linking.openURL(phoneUrl);
+        } catch (error) {
+            console.error('Erro ao abrir telefone do contato:', error);
+            showFeedback('Não foi possível iniciar a ligação.', 'error');
+        }
+    };
+
     const renderContact = ({ item }) => (
         <View style={[styles.contactCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.avatar, { backgroundColor: item.color }]}>
@@ -105,7 +214,11 @@ export default function ContatosScreen() {
                 <Text style={[styles.contactDetails, { color: colors.muted }]}>{item.relation} · {item.phone}</Text>
             </View>
             <View style={styles.actionButtons}>
-                <Pressable style={[styles.iconBtn, { backgroundColor: colors.border }]}>
+                <Pressable
+                    style={[styles.iconBtn, { backgroundColor: colors.border }]}
+                    onPress={() => callContact(item)}
+                    accessibilityLabel={`Ligar para ${item.name}`}
+                >
                     <MaterialCommunityIcons name="phone-outline" size={20} color="#C83C59" />
                 </Pressable>
                 <Pressable style={[styles.iconBtn, { backgroundColor: colors.border }]} onPress={() => openOptions(item)}>
@@ -115,6 +228,20 @@ export default function ContatosScreen() {
         </View>
     );
 
+    const renderAlertButton = () => (
+        <Animated.View style={{ transform: [{ scale: alertScaleAnim }] }}>
+            <Pressable
+                style={styles.alertBtn}
+                onPressIn={handleAlertPressIn}
+                onPressOut={handleAlertPressOut}
+                onPress={() => navigation.navigate('Home', { startSos: true })}
+            >
+                <MaterialCommunityIcons name="bell-ring-outline" size={22} color="#FFFFFF" style={styles.alertIcon} />
+                <Text style={styles.alertBtnText}>Alertar todos os contatos agora</Text>
+            </Pressable>
+        </Animated.View>
+    );
+
     return (
         <MobileFrame backgroundColor="#0D0D0D">
             <View style={[styles.appContainer, { backgroundColor: colors.background }]}>
@@ -122,10 +249,32 @@ export default function ContatosScreen() {
                 {/* Header */}
                 <View style={styles.header}>
                     <Text style={[styles.screenTitle, { color: colors.text }]}>Contatos de Confiança</Text>
-                    <Pressable style={styles.addBtn} onPress={() => setAddVisible(true)}>
+                    <Pressable style={styles.addBtn} onPress={() => { setFormData({ name: '', relation: '', phone: '' }); setAddVisible(true); }}>
                         <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
                     </Pressable>
                 </View>
+
+                {feedback && (
+                    <View style={[
+                        styles.feedback,
+                        { backgroundColor: feedback.type === 'error' ? '#FDECEF' : '#E8F7EF' },
+                    ]}>
+                        <MaterialCommunityIcons
+                            name={feedback.type === 'error' ? 'alert-circle-outline' : 'check-circle-outline'}
+                            size={22}
+                            color={feedback.type === 'error' ? '#C83C59' : '#21864A'}
+                        />
+                        <Text style={[
+                            styles.feedbackText,
+                            { color: feedback.type === 'error' ? '#A52D47' : '#176B3A' },
+                        ]}>
+                            {feedback.message}
+                        </Text>
+                        <Pressable onPress={() => setFeedback(null)} accessibilityLabel="Fechar aviso">
+                            <MaterialCommunityIcons name="close" size={18} color={feedback.type === 'error' ? '#A52D47' : '#176B3A'} />
+                        </Pressable>
+                    </View>
+                )}
 
                 {/* Lista de Contatos */}
                 <FlatList
@@ -134,19 +283,18 @@ export default function ContatosScreen() {
                     renderItem={renderContact}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
-                    ListFooterComponent={
-                        <Animated.View style={{ transform: [{ scale: alertScaleAnim }] }}>
-                            <Pressable
-                                style={styles.alertBtn}
-                                onPressIn={handleAlertPressIn}
-                                onPressOut={handleAlertPressOut}
-                                onPress={() => navigation.navigate('Home', { startSos: true })}
-                            >
-                                <MaterialCommunityIcons name="bell-ring-outline" size={22} color="#FFFFFF" style={styles.alertIcon} />
-                                <Text style={styles.alertBtnText}>Alertar todos os contatos agora</Text>
-                            </Pressable>
-                        </Animated.View>
-                    }
+                    ListEmptyComponent={(
+                        <View style={styles.emptyContactsState}>
+                            <MaterialCommunityIcons name="account-multiple-outline" size={36} color={colors.muted} />
+                            <Text style={[styles.emptyContactsText, { color: colors.muted }]}>
+                                Nenhum contato salvo ainda.
+                            </Text>
+                            <Text style={[styles.emptyContactsHint, { color: colors.muted }]}>
+                                Adicione um contato de confiança para receber alertas de emergência.
+                            </Text>
+                        </View>
+                    )}
+                    ListFooterComponent={contacts.length > 0 ? renderAlertButton : null}
                 />
 
                 <BottomNav active="Contatos" />
@@ -160,16 +308,16 @@ export default function ContatosScreen() {
                             <View style={styles.dragIndicator} />
                             <Text style={[styles.modalTitle, { color: colors.text }]}>Novo contato de confiança</Text>
 
-                            <TextInput style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Nome completo *" placeholderTextColor={colors.muted} />
-                            <TextInput style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Relação (ex: Mãe, Irmã, Amiga) *" placeholderTextColor={colors.muted} />
-                            <TextInput style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Telefone *" placeholderTextColor={colors.muted} keyboardType="phone-pad" />
+                            <TextInput value={formData.name} onChangeText={(name) => setFormData({ ...formData, name })} style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Nome completo *" placeholderTextColor={colors.muted} />
+                            <TextInput value={formData.relation} onChangeText={(relation) => setFormData({ ...formData, relation })} style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Relação (ex: Mãe, Irmã, Amiga) *" placeholderTextColor={colors.muted} />
+                            <TextInput value={formData.phone} onChangeText={(phone) => setFormData({ ...formData, phone: phoneMask(phone) })} style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Telefone *" placeholderTextColor={colors.muted} keyboardType="phone-pad" />
 
                             <View style={styles.modalActions}>
                                 <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setAddVisible(false)}>
                                     <Text style={styles.cancelBtnText}>Cancelar</Text>
                                 </Pressable>
-                                <Pressable style={styles.primaryBtn} onPress={() => setAddVisible(false)}>
-                                    <Text style={styles.primaryBtnText}>Adicionar</Text>
+                                <Pressable style={[styles.primaryBtn, isSaving && styles.disabledBtn]} onPress={() => saveContact()} disabled={isSaving}>
+                                    <Text style={styles.primaryBtnText}>{isSaving ? 'Salvando...' : 'Adicionar'}</Text>
                                 </Pressable>
                             </View>
                         </View>
@@ -239,7 +387,7 @@ export default function ContatosScreen() {
                             <TextInput
                                 style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]}
                                 value={formData.phone}
-                                onChangeText={(t) => setFormData({ ...formData, phone: t })}
+                                onChangeText={(t) => setFormData({ ...formData, phone: phoneMask(t) })}
                                 placeholderTextColor={colors.muted}
                                 keyboardType="phone-pad"
                             />
@@ -248,8 +396,8 @@ export default function ContatosScreen() {
                                 <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setEditVisible(false)}>
                                     <Text style={styles.cancelBtnText}>Cancelar</Text>
                                 </Pressable>
-                                <Pressable style={styles.primaryBtn} onPress={() => setEditVisible(false)}>
-                                    <Text style={styles.primaryBtnText}>Salvar</Text>
+                                <Pressable style={[styles.primaryBtn, isSaving && styles.disabledBtn]} onPress={() => saveContact(true)} disabled={isSaving}>
+                                    <Text style={styles.primaryBtnText}>{isSaving ? 'Salvando...' : 'Salvar'}</Text>
                                 </Pressable>
                             </View>
                         </View>
@@ -273,8 +421,8 @@ export default function ContatosScreen() {
                             <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setRemoveVisible(false)}>
                                 <Text style={styles.cancelBtnText}>Cancelar</Text>
                             </Pressable>
-                            <Pressable style={styles.primaryBtn} onPress={() => setRemoveVisible(false)}>
-                                <Text style={styles.primaryBtnText}>Remover</Text>
+                            <Pressable style={[styles.primaryBtn, isRemoving && styles.disabledBtn]} onPress={removeContact} disabled={isRemoving}>
+                                <Text style={styles.primaryBtnText}>{isRemoving ? 'Removendo...' : 'Remover'}</Text>
                             </Pressable>
                         </View>
                     </View>
@@ -298,9 +446,8 @@ const styles = StyleSheet.create({
         paddingBottom: 24,
     },
     screenTitle: {
-        fontSize: 22,
+        fontSize: 26,
         fontWeight: '700',
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
         color: '#FFFFFF',
     },
     addBtn: {
@@ -318,6 +465,39 @@ const styles = StyleSheet.create({
     listContent: {
         paddingHorizontal: 20,
         paddingBottom: 100,
+    },
+    emptyContactsState: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 48,
+        paddingHorizontal: 20,
+    },
+    emptyContactsText: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginTop: 12,
+        textAlign: 'center',
+    },
+    emptyContactsHint: {
+        fontSize: 12,
+        lineHeight: 18,
+        marginTop: 6,
+        textAlign: 'center',
+    },
+    feedback: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginHorizontal: 20,
+        marginBottom: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        borderRadius: 12,
+        gap: 9,
+    },
+    feedbackText: {
+        flex: 1,
+        fontSize: 14,
+        fontWeight: '600',
     },
     contactCard: {
         flexDirection: 'row',
@@ -385,6 +565,9 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '700',
+    },
+    disabledBtn: {
+        opacity: 0.65,
     },
     modalOverlay: {
         flex: 1,

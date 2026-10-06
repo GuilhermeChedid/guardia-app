@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Image,
     Pressable,
@@ -12,17 +12,21 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import BottomNav from '../../components/BottomNav/BottomNav';
 import { useTheme } from '../../context/ThemeContext';
 import { useUserProfile } from '../../context/UserProfileContext';
 import { MARITAL_STATUS_OPTIONS } from '../../constants/profileOptions';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../../services/api';
+import { phoneMask } from '../../utils/masks';
 
 export default function PerfilScreen() {
     const navigation = useNavigation();
     const { isLight, colors, toggleTheme } = useTheme();
-    const { profile, updateProfile } = useUserProfile();
+    const { profile, refreshProfile } = useUserProfile();
     const inputThemeStyle = {
         backgroundColor: colors.input,
         borderColor: colors.border,
@@ -35,18 +39,21 @@ export default function PerfilScreen() {
 
     // Profile form states
     const [name, setName] = useState(profile.name);
-    const [email, setEmail] = useState('mariaclara@email.com');
-    const [phone, setPhone] = useState('(11) 98765-4321');
-    const [address, setAddress] = useState('Rua das Flores, 42 — São Paulo, SP');
-    const [maritalStatus, setMaritalStatus] = useState('Solteira');
+    const [email, setEmail] = useState(profile.email);
+    const [phone, setPhone] = useState(profile.phone);
+    const [address, setAddress] = useState(profile.street);
+    const [maritalStatus, setMaritalStatus] = useState(profile.maritalStatus);
     const [isMaritalPickerVisible, setMaritalPickerVisible] = useState(false);
-    const [cpf] = useState('***.456.***-00');
+    const [cpf, setCpf] = useState(profile.cpf);
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
+    const [profileSaveMessage, setProfileSaveMessage] = useState('');
+    const profileSaveTimer = useRef(null);
 
     // Settings states
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [recoveryEmail, setRecoveryEmail] = useState('mariaclara@email.com');
+    const [recoveryEmail, setRecoveryEmail] = useState(profile.email);
     const [verificationCode, setVerificationCode] = useState('');
 
     // PIN states
@@ -56,7 +63,19 @@ export default function PerfilScreen() {
 
     useEffect(() => {
         setName(profile.name);
-    }, [profile.name]);
+        setEmail(profile.email);
+        setPhone(profile.phone);
+        setAddress(profile.street);
+        setMaritalStatus(profile.maritalStatus);
+        setCpf(profile.cpf);
+        setRecoveryEmail(profile.email);
+    }, [profile]);
+
+    useFocusEffect(
+        React.useCallback(() => {
+            refreshProfile();
+        }, [refreshProfile])
+    );
 
     const resetPasswordFlow = () => {
         setSecuritySection(null);
@@ -76,6 +95,60 @@ export default function PerfilScreen() {
         setVerificationCode('');
     };
 
+    const handleSaveProfile = async () => {
+        try {
+            const storedUser = await AsyncStorage.getItem('@guardia/auth_user');
+            const user = storedUser ? JSON.parse(storedUser) : null;
+
+            if (!user?.id) {
+                alert('Sessão expirada. Faça login novamente.');
+                return;
+            }
+
+            setIsSavingProfile(true);
+            await api.put(`/auth/profile/${user.id}`, {
+                nome: name,
+                email,
+                telefone: phone,
+                estado_civil: maritalStatus,
+                logradouro: address,
+            });
+
+            await AsyncStorage.setItem(
+                '@guardia/auth_user',
+                JSON.stringify({ ...user, nome: name.trim(), email: email.trim().toLowerCase() })
+            );
+            await refreshProfile();
+            setProfileSaveMessage('Informações atualizadas com sucesso.');
+            clearTimeout(profileSaveTimer.current);
+            profileSaveTimer.current = setTimeout(() => {
+                setProfileSaveMessage('');
+            }, 3500);
+            setScreen('main');
+        } catch (error) {
+            console.error('Erro ao salvar perfil:', error);
+            alert(error.response?.data?.message || 'Não foi possível salvar as alterações.');
+        } finally {
+            setIsSavingProfile(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await AsyncStorage.removeItem('@guardia/auth_user');
+            setProfileSaveMessage('Você saiu da conta com sucesso.');
+            clearTimeout(profileSaveTimer.current);
+            profileSaveTimer.current = setTimeout(() => {
+                navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+            }, 900);
+        } catch (error) {
+            console.error('Erro ao sair da conta:', error);
+            setProfileSaveMessage('Não foi possível sair da conta. Tente novamente.');
+        }
+    };
+
+    useEffect(() => () => clearTimeout(profileSaveTimer.current), []);
+
     return (
         <MobileFrame backgroundColor="#0C0D10">
             <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -83,11 +156,11 @@ export default function PerfilScreen() {
                     <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.mainContent} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
                         <View style={styles.avatarSection}>
                             <View style={styles.largeAvatar}>
-                                <Text style={styles.largeAvatarText}>M</Text>
+                                <Text style={styles.largeAvatarText}>{profile.name.charAt(0).toUpperCase()}</Text>
                             </View>
                             <Text style={[styles.userName, { color: colors.text }]}>{profile.name}</Text>
-                            <Text style={[styles.userEmail, { color: colors.muted }]}>mariaclara@email.com</Text>
-                            <Text style={[styles.userPhone, { color: colors.muted }]}>(11) 98765-4321</Text>
+                            <Text style={[styles.userEmail, { color: colors.muted }]}>{profile.email}</Text>
+                            <Text style={[styles.userPhone, { color: colors.muted }]}>{phoneMask(profile.phone)}</Text>
                         </View>
 
                         <View style={[styles.menuCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -127,6 +200,24 @@ export default function PerfilScreen() {
                             </Pressable>
                         </View>
 
+                        {profileSaveMessage ? (
+                            <View style={[
+                                styles.profileSaveNotice,
+                                profileSaveMessage.startsWith('Não') && styles.profileErrorNotice,
+                            ]}>
+                                <MaterialCommunityIcons
+                                    name={profileSaveMessage.startsWith('Não') ? 'alert-circle-outline' : 'check-circle-outline'}
+                                    size={18}
+                                    color={profileSaveMessage.startsWith('Não') ? '#F87171' : '#4ADE80'}
+                                />
+                                <Text style={[
+                                    styles.profileSaveNoticeText,
+                                    profileSaveMessage.startsWith('Não') && styles.profileErrorNoticeText,
+                                ]}>
+                                    {profileSaveMessage}
+                                </Text>
+                            </View>
+                        ) : null}
                         <Text style={styles.footerVersion}>Guardiã v1.0 · Com você, sempre</Text>
                     </ScrollView>
                 )}
@@ -147,7 +238,7 @@ export default function PerfilScreen() {
                         <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
                             <View style={styles.avatarCenterWrap}>
                                 <View style={styles.mediumAvatar}>
-                                    <Text style={styles.mediumAvatarText}>M</Text>
+                                    <Text style={styles.mediumAvatarText}>{name.charAt(0).toUpperCase()}</Text>
                                 </View>
                                 <Text style={styles.avatarHint}>Toque para alterar a foto</Text>
                             </View>
@@ -209,7 +300,7 @@ export default function PerfilScreen() {
                                 <Text style={styles.inputLabel}>CPF</Text>
                                 <TextInput
                                     style={[styles.textInput, styles.disabledInput, inputThemeStyle, { color: colors.muted }]}
-                                    value={cpf}
+                                    value={cpf ? cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '***.$2.***-$4') : ''}
                                     editable={false}
                                 />
                                 <Text style={styles.inputSubHint}>O CPF não pode ser alterado</Text>
@@ -217,12 +308,12 @@ export default function PerfilScreen() {
 
                             <Pressable
                                 style={styles.primaryButton}
-                                onPress={() => {
-                                    updateProfile({ name, email, phone });
-                                    setScreen('main');
-                                }}
+                                onPress={handleSaveProfile}
+                                disabled={isSavingProfile}
                             >
-                                <Text style={styles.primaryButtonText}>Salvar alterações</Text>
+                                <Text style={styles.primaryButtonText}>
+                                    {isSavingProfile ? 'Salvando...' : 'Salvar alterações'}
+                                </Text>
                             </Pressable>
                         </ScrollView>
                     </View>
@@ -615,7 +706,7 @@ export default function PerfilScreen() {
                             <View style={[styles.settingsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                 <Pressable
                                     style={styles.settingsRow}
-                                    onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] })}
+                                    onPress={handleLogout}
                                 >
                                     <View
                                         style={[
@@ -634,6 +725,25 @@ export default function PerfilScreen() {
                                     </View>
                                 </Pressable>
                             </View>
+
+                            {profileSaveMessage ? (
+                                <View style={[
+                                    styles.profileSaveNotice,
+                                    profileSaveMessage.startsWith('Não') && styles.profileErrorNotice,
+                                ]}>
+                                    <MaterialCommunityIcons
+                                        name={profileSaveMessage.startsWith('Não') ? 'alert-circle-outline' : 'check-circle-outline'}
+                                        size={18}
+                                        color={profileSaveMessage.startsWith('Não') ? '#F87171' : '#4ADE80'}
+                                    />
+                                    <Text style={[
+                                        styles.profileSaveNoticeText,
+                                        profileSaveMessage.startsWith('Não') && styles.profileErrorNoticeText,
+                                    ]}>
+                                        {profileSaveMessage}
+                                    </Text>
+                                </View>
+                            ) : null}
 
                             <Text style={styles.footerVersionSettings}>Guardiã v1.0 · Com você, sempre</Text>
                         </ScrollView>
@@ -778,6 +888,31 @@ const styles = StyleSheet.create({
         color: '#71717A',
         fontSize: 11,
         textAlign: 'center',
+    },
+    profileSaveNotice: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'center',
+        gap: 8,
+        marginBottom: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 9,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(74, 222, 128, 0.35)',
+        backgroundColor: 'rgba(22, 101, 52, 0.18)',
+    },
+    profileSaveNoticeText: {
+        color: '#86EFAC',
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    profileErrorNotice: {
+        borderColor: 'rgba(248, 113, 113, 0.35)',
+        backgroundColor: 'rgba(127, 29, 29, 0.18)',
+    },
+    profileErrorNoticeText: {
+        color: '#FCA5A5',
     },
     subScreen: {
         flex: 1,
