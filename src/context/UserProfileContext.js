@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import { getAssetUrl } from '../services/api';
 
 const PROFILE_STORAGE_KEY = '@guardia/profile';
 const DEFAULT_PROFILE = {
@@ -12,6 +13,12 @@ const DEFAULT_PROFILE = {
     maritalStatus: '',
     address: '',
     street: '',
+    postalCode: '',
+    addressNumber: '',
+    addressComplement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
     contactsCount: 0,
     evidenceCount: 0,
 };
@@ -47,11 +54,17 @@ export function UserProfileProvider({ children }) {
                 name: data.nome || '',
                 email: data.email || '',
                 phone: data.telefone || '',
-                photoUrl: data.url_foto_perfil || '',
+                photoUrl: getAssetUrl(data.url_foto_perfil || ''),
                 cpf: data.cpf || '',
                 maritalStatus: data.estado_civil || '',
                 address: addressParts.join(', '),
                 street: data.logradouro || '',
+                postalCode: data.cep || '',
+                addressNumber: data.numero || '',
+                addressComplement: data.complemento || '',
+                neighborhood: data.bairro || '',
+                city: data.cidade || '',
+                state: data.estado_uf || '',
                 contactsCount: data.contatos_count || 0,
                 evidenceCount: data.evidencias_count || 0,
             });

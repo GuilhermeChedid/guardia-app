@@ -40,6 +40,8 @@ export default function ProvasScreen() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [pin, setPin] = useState('');
     const [pinError, setPinError] = useState('');
+    const [pinBlockedUntil, setPinBlockedUntil] = useState(null);
+    const [pinBlockRemaining, setPinBlockRemaining] = useState('');
 
     // Main Screen States
     const [activeFilter, setActiveFilter] = useState('Todos');
@@ -125,6 +127,51 @@ export default function ProvasScreen() {
 
     useEffect(() => () => clearTimeout(feedbackTimer.current), []);
 
+    const loadPinLock = useCallback(async () => {
+        try {
+            const storedUser = await AsyncStorage.getItem('@guardia/auth_user');
+            const user = storedUser ? JSON.parse(storedUser) : null;
+            if (!user?.id) return;
+
+            await api.get(`/auth/proof-pin-status/${user.id}`);
+        } catch (error) {
+            if (error.response?.status === 423 && error.response.data?.bloqueado_ate) {
+                setPinBlockedUntil(error.response.data.bloqueado_ate);
+                setPinError(error.response.data.message);
+            }
+        }
+    }, []);
+
+    useFocusEffect(useCallback(() => {
+        if (!isAuthenticated) loadPinLock();
+    }, [isAuthenticated, loadPinLock]));
+
+    useEffect(() => {
+        if (!pinBlockedUntil) {
+            setPinBlockRemaining('');
+            return undefined;
+        }
+
+        const updateRemaining = () => {
+            const remainingMs = new Date(pinBlockedUntil).getTime() - Date.now();
+            if (remainingMs <= 0) {
+                setPinBlockedUntil(null);
+                setPinError('');
+                setPinBlockRemaining('');
+                return;
+            }
+
+            const totalSeconds = Math.ceil(remainingMs / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            setPinBlockRemaining(`${minutes}:${String(seconds).padStart(2, '0')}`);
+        };
+
+        updateRemaining();
+        const timer = setInterval(updateRemaining, 1000);
+        return () => clearInterval(timer);
+    }, [pinBlockedUntil]);
+
     // --- PIN Logic ---
     useEffect(() => {
         if (pin.length !== 4) {
@@ -149,6 +196,9 @@ export default function ProvasScreen() {
                 setIsAuthenticated(true);
             } catch (error) {
                 setPin('');
+                if (error.response?.status === 423 && error.response.data?.bloqueado_ate) {
+                    setPinBlockedUntil(error.response.data.bloqueado_ate);
+                }
                 setPinError(error.response?.data?.message || 'PIN incorreto. Tente novamente.');
             }
         };
@@ -157,6 +207,7 @@ export default function ProvasScreen() {
     }, [pin]);
 
     const handlePinPress = (val) => {
+        if (pinBlockedUntil || pin.length === 4) return;
         if (pin.length < 4) {
             setPinError('');
             setPin(pin + val);
@@ -164,6 +215,7 @@ export default function ProvasScreen() {
     };
 
     const handleBackspace = () => {
+        if (pinBlockedUntil) return;
         if (pin.length > 0) setPin(pin.slice(0, -1));
     };
 
@@ -421,7 +473,7 @@ export default function ProvasScreen() {
                         throw new Error('Diretório local indisponível para salvar a evidência.');
                     }
                     const fileUri = `${FileSystem.documentDirectory}${safeName.toLowerCase().endsWith('.txt') ? safeName : `${safeName}.txt`}`;
-                    await FileSystem.writeAsStringAsync(fileUri, selectedFile.content, {
+                    await FileSystem.writeAsStringAsync(fileUri, file.content, {
                         encoding: FileSystem.EncodingType.UTF8,
                     });
                     if (!(await Sharing.isAvailableAsync())) {
@@ -512,7 +564,9 @@ export default function ProvasScreen() {
                     <Feather name="lock" size={28} color="#C83C59" />
                 </View>
                 <Text style={[styles.screenTitleCenter, { color: colors.text }]}>Área Protegida</Text>
-                <Text style={[styles.pinSubtitle, { color: colors.muted }]}>Digite seu PIN de 4 dígitos para acessar as evidências</Text>
+                <Text style={[styles.pinSubtitle, { color: colors.muted }]}>
+                    Digite seu PIN de 4 dígitos para acessar as evidências
+                </Text>
 
                 <View style={styles.pinDotsContainer}>
                     {[1, 2, 3, 4].map((_, idx) => (
@@ -525,22 +579,26 @@ export default function ProvasScreen() {
                 {pinError ? (
                     <View style={styles.pinErrorBox}>
                         <Feather name="alert-circle" size={16} color="#F87171" />
-                        <Text style={styles.pinErrorText}>{pinError}</Text>
+                        <Text style={styles.pinErrorText}>
+                            {pinBlockedUntil
+                                ? `Acesso bloqueado por tentativas excedidas. Tempo restante: ${pinBlockRemaining || '15:00'}`
+                                : pinError}
+                        </Text>
                     </View>
                 ) : null}
             </View>
 
             <View style={styles.keypad}>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                    <Pressable key={num} style={[styles.keypadBtn, { backgroundColor: colors.surface }]} onPress={() => handlePinPress(num.toString())}>
+                    <Pressable key={num} style={[styles.keypadBtn, { backgroundColor: colors.surface }, pinBlockedUntil && styles.keypadBtnDisabled]} onPress={() => handlePinPress(num.toString())} disabled={Boolean(pinBlockedUntil)}>
                         <Text style={[styles.keypadTxt, { color: colors.text }]}>{num}</Text>
                     </Pressable>
                 ))}
                 <View style={styles.keypadBtnEmpty} />
-                <Pressable style={[styles.keypadBtn, { backgroundColor: colors.surface }]} onPress={() => handlePinPress('0')}>
+                <Pressable style={[styles.keypadBtn, { backgroundColor: colors.surface }, pinBlockedUntil && styles.keypadBtnDisabled]} onPress={() => handlePinPress('0')} disabled={Boolean(pinBlockedUntil)}>
                     <Text style={[styles.keypadTxt, { color: colors.text }]}>0</Text>
                 </Pressable>
-                <Pressable style={[styles.keypadBtn, { backgroundColor: colors.surfaceStrong }]} onPress={handleBackspace}>
+                <Pressable style={[styles.keypadBtn, { backgroundColor: colors.surfaceStrong }, pinBlockedUntil && styles.keypadBtnDisabled]} onPress={handleBackspace} disabled={Boolean(pinBlockedUntil)}>
                     <Ionicons name="backspace-outline" size={24} color={colors.muted} />
                 </Pressable>
             </View>
@@ -691,7 +749,7 @@ export default function ProvasScreen() {
 
                         <View style={styles.divider} />
 
-                        <Pressable style={styles.optionRow} onPress={downloadEvidence}>
+                        <Pressable style={styles.optionRow} onPress={() => downloadEvidence(selectedFile)}>
                             <Feather name="download" size={20} color="#23A862" />
                             <Text style={[styles.optionText, { color: colors.text }]}>Baixar / Compartilhar arquivo</Text>
                         </Pressable>
@@ -982,6 +1040,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#1C1C1E',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    keypadBtnDisabled: {
+        opacity: 0.45,
     },
     keypadBtnEmpty: {
         width: 80,

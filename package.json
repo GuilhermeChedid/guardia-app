@@ -23,6 +23,7 @@
     "expo": "~57.0.20",
     "expo-asset": "~57.0.16",
     "expo-document-picker": "~57.0.3",
+    "expo-face-detector": "^13.0.2",
     "expo-font": "~57.0.3",
     "expo-image-picker": "~57.0.20",
     "expo-linear-gradient": "~57.0.1",

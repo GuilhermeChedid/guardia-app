@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -11,6 +11,7 @@ import { useUserProfile } from '../../context/UserProfileContext';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
+import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
 
 const CARDS = [
     { title: 'Guardar Evidência', subtitle: 'Seguro e criptografado', color: '#EB5757', bg: 'rgba(235,87,87,0.12)', icon: 'record-circle' },
@@ -24,6 +25,14 @@ const normalizeBrazilianPhone = (phone) => {
     return `55${digits}`;
 };
 
+const getInitials = (value = '') => value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('') || '?';
+
 export default function HomeScreen() {
     const navigation = useNavigation();
     const route = useRoute();
@@ -34,12 +43,22 @@ export default function HomeScreen() {
     const [sosCountdown, setSosCountdown] = useState(null);
     const [sosPulse, setSosPulse] = useState(false);
     const [sosDispatched, setSosDispatched] = useState(false);
+    const [feedback, setFeedback] = useState(null);
+    const feedbackTimer = useRef(null);
+
+    const showFeedback = (message, type = 'error') => {
+        setFeedback({ message, type });
+        clearTimeout(feedbackTimer.current);
+        feedbackTimer.current = setTimeout(() => setFeedback(null), 4000);
+    };
+
+    useEffect(() => () => clearTimeout(feedbackTimer.current), []);
 
     const dispatchSos = async () => {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
-                Alert.alert('Localização necessária', 'Permita o acesso à localização para enviar o alerta com sua posição.');
+                showFeedback('Localização necessária: permita o acesso à localização para enviar o alerta com sua posição.');
                 return;
             }
 
@@ -52,10 +71,7 @@ export default function HomeScreen() {
                 throw new Error('O GPS não retornou uma coordenada válida.');
             }
             if (accuracy && accuracy > 500) {
-                Alert.alert(
-                    'Localização imprecisa',
-                    `O GPS informou uma precisão aproximada de ${Math.round(accuracy)} metros. Ative a localização precisa e tente novamente.`
-                );
+                showFeedback(`Localização imprecisa: o GPS informou uma precisão aproximada de ${Math.round(accuracy)} metros. Ative a localização precisa e tente novamente.`);
                 return;
             }
             const mapsLink = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
@@ -68,14 +84,14 @@ export default function HomeScreen() {
             }
 
             if (!contacts.length) {
-                Alert.alert('Nenhum contato cadastrado', 'Cadastre um contato de confiança antes de acionar o SOS.');
+                showFeedback('Nenhum contato cadastrado. Cadastre um contato de confiança antes de acionar o SOS.');
                 return;
             }
 
             const selectedContact = contacts.find((contact) => contact.nome?.trim().toLowerCase() === 'eu') || contacts[0];
             const phone = normalizeBrazilianPhone(selectedContact.telefone);
             if (phone.length < 12) {
-                Alert.alert('Telefone inválido', `Corrija o telefone de ${selectedContact.nome} antes de usar o SOS.`);
+                showFeedback(`Telefone inválido. Corrija o telefone de ${selectedContact.nome} antes de usar o SOS.`);
                 return;
             }
 
@@ -93,19 +109,16 @@ export default function HomeScreen() {
             if (Platform.OS !== 'web') {
                 const canOpenWhatsApp = await Linking.canOpenURL(whatsappUrl);
                 if (!canOpenWhatsApp) {
-                    Alert.alert('WhatsApp não encontrado', 'Instale o WhatsApp ou use o link da localização para avisar seus contatos.');
+                    showFeedback('WhatsApp não encontrado. Instale o WhatsApp ou use o link da localização para avisar seus contatos.');
                     return;
                 }
             }
 
             await Linking.openURL(whatsappUrl);
-            Alert.alert(
-                'Mensagem preparada',
-                `O WhatsApp foi aberto para ${selectedContact.nome}. Confirme o envio da mensagem.\nPrecisão do GPS: ${accuracy ? `${Math.round(accuracy)} m` : 'não informada'}.`
-            );
+            showFeedback(`Mensagem preparada. O WhatsApp foi aberto para ${selectedContact.nome}. Confirme o envio. Precisão do GPS: ${accuracy ? `${Math.round(accuracy)} m` : 'não informada'}.`, 'success');
         } catch (error) {
             console.error('Erro ao preparar alerta SOS:', error);
-            Alert.alert('Erro no SOS', 'Não foi possível preparar a mensagem de emergência. Tente novamente.');
+            showFeedback('Erro no SOS. Não foi possível preparar a mensagem de emergência. Tente novamente.');
         }
     };
 
@@ -175,7 +188,7 @@ export default function HomeScreen() {
         } else if (title === 'Guardar Evidência') {
             navigation.navigate('Provas');
         } else {
-            Alert.alert('Aviso', `A função "${title}" estará disponível em breve.`);
+            showFeedback(`A função "${title}" estará disponível em breve.`, 'success');
         }
     };
 
@@ -193,6 +206,7 @@ export default function HomeScreen() {
 
     return (
         <MobileFrame backgroundColor="#0D0D0F">
+            <FeedbackBanner feedback={feedback} onClose={() => setFeedback(null)} />
             <View style={[styles.container, { backgroundColor: colors.background }]}>
                 {(sosCountdown !== null || sosDispatched) && (
                     <View style={styles.sosStatusBar}>
@@ -215,7 +229,11 @@ export default function HomeScreen() {
                         </Text>
                     </View>
                     <Pressable onPress={() => navigation.navigate('Perfil')} style={styles.avatar}>
-                        <Text style={styles.avatarText}>{profile.name.charAt(0).toUpperCase()}</Text>
+                        {profile.photoUrl ? (
+                            <Image source={{ uri: profile.photoUrl }} style={styles.avatarImage} />
+                        ) : (
+                            <Text style={styles.avatarText}>{getInitials(profile.name)}</Text>
+                        )}
                     </Pressable>
                 </View>
 
@@ -381,6 +399,11 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontWeight: '700',
         fontSize: 16,
+    },
+    avatarImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 21,
     },
     sosContainer: {
         alignItems: 'center',

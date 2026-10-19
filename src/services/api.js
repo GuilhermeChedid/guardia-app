@@ -15,4 +15,10 @@ const api = axios.create({
     },
 });
 
+export const getAssetUrl = (assetPath) => {
+    if (!assetPath || assetPath.startsWith('http')) return assetPath;
+    const baseUrl = api.defaults.baseURL.replace(/\/api$/, '');
+    return `${baseUrl}${assetPath}`;
+};
+
 export default api;

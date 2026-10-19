@@ -20,6 +20,16 @@ import { POST_CATEGORIES } from '../../constants/posts';
 import { usePosts } from '../../context/PostsContext';
 import { useUserProfile } from '../../context/UserProfileContext';
 
+const logoGuardia = require('../../assets/imagens/logo_guardia.png');
+
+const getInitials = (value = '') => value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('') || '?';
+
 const CATEGORIES = ['Todas', ...POST_CATEGORIES];
 
 // Componente isolado para o Card do Post gerenciar sua própria animação de curtida
@@ -108,7 +118,7 @@ export default function InformacoesScreen() {
     const { colors } = useTheme();
     const { posts, updatePost, addComment: saveComment, refreshPosts } = usePosts();
     const { profile } = useUserProfile();
-    const profileInitial = profile.name?.trim().charAt(0).toUpperCase() || '?';
+    const profileInitial = getInitials(profile.name);
     const [detailId, setDetailId] = useState(null);
     const [commentInput, setCommentInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
@@ -293,7 +303,7 @@ export default function InformacoesScreen() {
 
                             <View style={styles.authorRow}>
                                 <View style={styles.authorAvatar}>
-                                    <Text style={styles.authorAvatarText}>G</Text>
+                                    <Image source={logoGuardia} style={styles.authorAvatarImage} resizeMode="contain" />
                                 </View>
                                 <View>
                                     <Text style={[styles.authorName, { color: colors.text }]}>Equipe Guardiã</Text>
@@ -350,7 +360,7 @@ export default function InformacoesScreen() {
                                             {comment.avatarImage ? (
                                                 <Image source={{ uri: comment.avatarImage }} style={styles.commentAvatarImage} />
                                             ) : (
-                                                <Text style={styles.commentAvatarText}>{comment.avatar || comment.author?.trim().charAt(0).toUpperCase() || '?'}</Text>
+                                                <Text style={styles.commentAvatarText}>{getInitials(comment.author)}</Text>
                                             )}
                                         </View>
                                         <View style={[styles.commentBubble, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -653,6 +663,11 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontWeight: '700',
         fontSize: 14,
+    },
+    authorAvatarImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 18,
     },
     authorName: {
         color: '#F8FAFC',

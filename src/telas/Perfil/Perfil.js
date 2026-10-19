@@ -9,7 +9,10 @@ import {
     TextInput,
     View,
     Modal,
+    Platform,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as FaceDetector from 'expo-face-detector';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -22,6 +25,8 @@ import { MARITAL_STATUS_OPTIONS } from '../../constants/profileOptions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
 import { phoneMask } from '../../utils/masks';
+import { cepMask } from '../../utils/masks';
+import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
 
 export default function PerfilScreen() {
     const navigation = useNavigation();
@@ -42,11 +47,20 @@ export default function PerfilScreen() {
     const [email, setEmail] = useState(profile.email);
     const [phone, setPhone] = useState(profile.phone);
     const [address, setAddress] = useState(profile.street);
+    const [postalCode, setPostalCode] = useState(profile.postalCode);
+    const [addressNumber, setAddressNumber] = useState(profile.addressNumber);
+    const [addressComplement, setAddressComplement] = useState(profile.addressComplement);
+    const [neighborhood, setNeighborhood] = useState(profile.neighborhood);
+    const [city, setCity] = useState(profile.city);
+    const [state, setState] = useState(profile.state);
+    const [isAddressEditorVisible, setAddressEditorVisible] = useState(false);
     const [maritalStatus, setMaritalStatus] = useState(profile.maritalStatus);
     const [isMaritalPickerVisible, setMaritalPickerVisible] = useState(false);
     const [cpf, setCpf] = useState(profile.cpf);
     const [isSavingProfile, setIsSavingProfile] = useState(false);
     const [profileSaveMessage, setProfileSaveMessage] = useState('');
+    const [feedback, setFeedback] = useState(null);
+    const [isSavingPhoto, setIsSavingPhoto] = useState(false);
     const profileSaveTimer = useRef(null);
 
     // Settings states
@@ -66,6 +80,12 @@ export default function PerfilScreen() {
         setEmail(profile.email);
         setPhone(profile.phone);
         setAddress(profile.street);
+        setPostalCode(profile.postalCode);
+        setAddressNumber(profile.addressNumber);
+        setAddressComplement(profile.addressComplement);
+        setNeighborhood(profile.neighborhood);
+        setCity(profile.city);
+        setState(profile.state);
         setMaritalStatus(profile.maritalStatus);
         setCpf(profile.cpf);
         setRecoveryEmail(profile.email);
@@ -101,18 +121,33 @@ export default function PerfilScreen() {
             const user = storedUser ? JSON.parse(storedUser) : null;
 
             if (!user?.id) {
-                alert('Sessão expirada. Faça login novamente.');
+                setFeedback({ type: 'error', message: 'Sessão expirada. Faça login novamente.' });
+                return;
+            }
+
+            if (!postalCode.trim() || !address.trim() || !addressNumber.trim() || !neighborhood.trim() || !city.trim() || !state.trim()) {
+                setFeedback({ type: 'error', message: 'Preencha CEP, logradouro, número, bairro, cidade e UF.' });
                 return;
             }
 
             setIsSavingProfile(true);
-            await api.put(`/auth/profile/${user.id}`, {
+            const response = await api.put(`/auth/profile/${user.id}`, {
                 nome: name,
                 email,
                 telefone: phone,
                 estado_civil: maritalStatus,
                 logradouro: address,
+                cep: postalCode,
+                numero: addressNumber,
+                complemento: addressComplement,
+                bairro: neighborhood,
+                cidade: city,
+                estado_uf: state,
             });
+
+            if (!response.data?.success) {
+                throw new Error(response.data?.message || 'Não foi possível salvar o endereço.');
+            }
 
             await AsyncStorage.setItem(
                 '@guardia/auth_user',
@@ -127,11 +162,125 @@ export default function PerfilScreen() {
             setScreen('main');
         } catch (error) {
             console.error('Erro ao salvar perfil:', error);
-            alert(error.response?.data?.message || 'Não foi possível salvar as alterações.');
+            setFeedback({ type: 'error', message: error.response?.data?.message || 'Não foi possível salvar as alterações.' });
         } finally {
             setIsSavingProfile(false);
         }
     };
+
+    const handlePickProfilePhoto = async () => {
+        try {
+            const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permission.granted) {
+                setFeedback({ type: 'error', message: 'Permita o acesso às fotos para escolher sua foto de perfil.' });
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.85,
+            });
+            if (result.canceled || !result.assets?.[0]?.uri) return;
+
+            const selectedPhoto = result.assets[0];
+            if (Platform.OS !== 'web') {
+                let faces;
+                try {
+                    faces = await FaceDetector.detectFacesAsync(selectedPhoto.uri, {
+                        mode: FaceDetector.FaceDetectorMode.accurate,
+                        detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
+                        runClassifications: FaceDetector.FaceDetectorClassifications.none,
+                    });
+                } catch (error) {
+                    console.error('Erro ao analisar rosto da foto:', error);
+                    setFeedback({
+                        type: 'error',
+                        message: 'Não foi possível analisar esta foto. Tente uma imagem JPG, JPEG ou PNG com o rosto bem visível.',
+                    });
+                    return;
+                }
+
+                const detectedFaces = faces?.faces || [];
+                if (detectedFaces.length !== 1) {
+                    setFeedback({
+                        type: 'error',
+                        message: detectedFaces.length === 0
+                            ? 'Escolha uma foto de perfil com seu rosto visível.'
+                            : 'Escolha uma foto com apenas uma pessoa.',
+                    });
+                    return;
+                }
+            }
+
+            const storedUser = await AsyncStorage.getItem('@guardia/auth_user');
+            const user = storedUser ? JSON.parse(storedUser) : null;
+            if (!user?.id) {
+                setFeedback({ type: 'error', message: 'Sessão expirada. Faça login novamente.' });
+                return;
+            }
+
+            setIsSavingPhoto(true);
+            const formData = new FormData();
+            if (Platform.OS === 'web' && selectedPhoto.file) {
+                formData.append('photo', selectedPhoto.file);
+            } else {
+                formData.append('photo', {
+                    uri: selectedPhoto.uri,
+                    name: `profile-${user.id}.jpg`,
+                    type: selectedPhoto.mimeType || 'image/jpeg',
+                });
+            }
+            const response = await api.post(`/auth/profile/${user.id}/photo`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            await refreshProfile();
+            setFeedback({ type: 'success', message: response.data.message || 'Foto de perfil atualizada.' });
+        } catch (error) {
+            console.error('Erro ao atualizar foto de perfil:', error);
+            const message = error.response?.data?.message
+                || (error.code === 'ERR_NETWORK'
+                    ? 'Não foi possível conectar ao servidor. Verifique se o backend está ligado.'
+                    : error.message || 'Não foi possível atualizar a foto de perfil.');
+            setFeedback({ type: 'error', message });
+        } finally {
+            setIsSavingPhoto(false);
+        }
+    };
+
+    const handleDeleteProfilePhoto = async () => {
+        try {
+            const storedUser = await AsyncStorage.getItem('@guardia/auth_user');
+            const user = storedUser ? JSON.parse(storedUser) : null;
+            if (!user?.id) {
+                setFeedback({ type: 'error', message: 'Sessão expirada. Faça login novamente.' });
+                return;
+            }
+
+            setIsSavingPhoto(true);
+            const response = await api.delete(`/auth/profile/${user.id}/photo`);
+            await refreshProfile();
+            setFeedback({ type: 'success', message: response.data.message || 'Foto de perfil removida.' });
+        } catch (error) {
+            console.error('Erro ao remover foto de perfil:', error);
+            const message = error.response?.data?.message
+                || (error.code === 'ERR_NETWORK'
+                    ? 'Não foi possível conectar ao servidor. Verifique se o backend está ligado.'
+                    : error.message || 'Não foi possível remover a foto de perfil.');
+            setFeedback({ type: 'error', message });
+        } finally {
+            setIsSavingPhoto(false);
+        }
+    };
+
+    const getInitials = (value) => value
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join('');
 
     const handleLogout = async () => {
         try {
@@ -151,12 +300,17 @@ export default function PerfilScreen() {
 
     return (
         <MobileFrame backgroundColor="#0C0D10">
+            <FeedbackBanner feedback={feedback} onClose={() => setFeedback(null)} />
             <View style={[styles.screen, { backgroundColor: colors.background }]}>
                 {screen === 'main' && (
                     <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.mainContent} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
                         <View style={styles.avatarSection}>
                             <View style={styles.largeAvatar}>
-                                <Text style={styles.largeAvatarText}>{profile.name.charAt(0).toUpperCase()}</Text>
+                                {profile.photoUrl ? (
+                                    <Image source={{ uri: profile.photoUrl }} style={styles.largeProfileAvatarImage} />
+                                ) : (
+                                    <Text style={styles.largeAvatarText}>{getInitials(profile.name)}</Text>
+                                )}
                             </View>
                             <Text style={[styles.userName, { color: colors.text }]}>{profile.name}</Text>
                             <Text style={[styles.userEmail, { color: colors.muted }]}>{profile.email}</Text>
@@ -236,12 +390,21 @@ export default function PerfilScreen() {
                         </View>
 
                         <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
-                            <View style={styles.avatarCenterWrap}>
+                            <Pressable style={styles.avatarCenterWrap} onPress={handlePickProfilePhoto} disabled={isSavingPhoto}>
                                 <View style={styles.mediumAvatar}>
-                                    <Text style={styles.mediumAvatarText}>{name.charAt(0).toUpperCase()}</Text>
+                                    {profile.photoUrl ? (
+                                        <Image source={{ uri: profile.photoUrl }} style={styles.profileAvatarImage} />
+                                    ) : (
+                                        <Text style={styles.mediumAvatarText}>{getInitials(name)}</Text>
+                                    )}
                                 </View>
-                                <Text style={styles.avatarHint}>Toque para alterar a foto</Text>
-                            </View>
+                                <Text style={styles.avatarHint}>{isSavingPhoto ? 'Salvando foto...' : 'Toque para adicionar ou alterar a foto'}</Text>
+                            </Pressable>
+                            {profile.photoUrl && (
+                                <Pressable onPress={handleDeleteProfilePhoto} disabled={isSavingPhoto}>
+                                    <Text style={styles.removePhotoText}>Remover foto</Text>
+                                </Pressable>
+                            )}
 
                             <View style={styles.inputGroup}>
                                 <Text style={styles.inputLabel}>NOME COMPLETO</Text>
@@ -277,12 +440,16 @@ export default function PerfilScreen() {
 
                             <View style={styles.inputGroup}>
                                 <Text style={styles.inputLabel}>ENDEREÇO</Text>
-                                <TextInput
-                                    style={[styles.textInput, inputThemeStyle]}
-                                    value={address}
-                                    onChangeText={setAddress}
-                                    placeholderTextColor={colors.muted}
-                                />
+                                <Pressable
+                                    style={[styles.addressEditorRow, { backgroundColor: colors.input, borderColor: colors.border }]}
+                                    onPress={() => setAddressEditorVisible(true)}
+                                >
+                                    <Text style={[styles.addressEditorText, { color: address ? colors.text : colors.muted }]} numberOfLines={1}>
+                                        {address || 'Adicionar endereço'}
+                                    </Text>
+                                    <MaterialCommunityIcons name="chevron-right" size={21} color={colors.muted} />
+                                </Pressable>
+                                <Text style={styles.inputSubHint}>Toque na seta para editar todos os campos</Text>
                             </View>
 
                             <View style={styles.inputGroup}>
@@ -783,6 +950,43 @@ export default function PerfilScreen() {
                     </View>
                 </View>
             </Modal>
+
+            <Modal
+                visible={isAddressEditorVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setAddressEditorVisible(false)}
+            >
+                <View style={styles.addressModalOverlay}>
+                    <View style={[styles.addressModal, { backgroundColor: colors.surface }]}>
+                        <View style={styles.maritalModalHeader}>
+                            <Text style={[styles.maritalModalTitle, { color: colors.text }]}>Editar endereço</Text>
+                            <Pressable onPress={() => setAddressEditorVisible(false)}>
+                                <MaterialCommunityIcons name="close" size={22} color={colors.muted} />
+                            </Pressable>
+                        </View>
+                        <ScrollView keyboardShouldPersistTaps="handled">
+                            <Text style={styles.inputLabel}>CEP</Text>
+                            <TextInput style={[styles.textInput, inputThemeStyle, styles.addressModalInput]} value={postalCode} onChangeText={(value) => setPostalCode(cepMask(value))} keyboardType="numeric" />
+                            <Text style={styles.inputLabel}>LOGRADOURO</Text>
+                            <TextInput style={[styles.textInput, inputThemeStyle, styles.addressModalInput]} value={address} onChangeText={setAddress} />
+                            <Text style={styles.inputLabel}>NÚMERO</Text>
+                            <TextInput style={[styles.textInput, inputThemeStyle, styles.addressModalInput]} value={addressNumber} onChangeText={setAddressNumber} />
+                            <Text style={styles.inputLabel}>COMPLEMENTO</Text>
+                            <TextInput style={[styles.textInput, inputThemeStyle, styles.addressModalInput]} value={addressComplement} onChangeText={setAddressComplement} />
+                            <Text style={styles.inputLabel}>BAIRRO</Text>
+                            <TextInput style={[styles.textInput, inputThemeStyle, styles.addressModalInput]} value={neighborhood} onChangeText={setNeighborhood} />
+                            <Text style={styles.inputLabel}>CIDADE</Text>
+                            <TextInput style={[styles.textInput, inputThemeStyle, styles.addressModalInput]} value={city} onChangeText={setCity} />
+                            <Text style={styles.inputLabel}>UF</Text>
+                            <TextInput style={[styles.textInput, inputThemeStyle, styles.addressModalInput]} value={state} onChangeText={(value) => setState(value.toUpperCase().slice(0, 2))} maxLength={2} autoCapitalize="characters" />
+                            <Pressable style={styles.primaryButton} onPress={() => setAddressEditorVisible(false)}>
+                                <Text style={styles.primaryButtonText}>Concluir edição</Text>
+                            </Pressable>
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </MobileFrame>
     );
 }
@@ -826,6 +1030,11 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 36,
         fontWeight: '700',
+    },
+    largeProfileAvatarImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 45,
     },
     userName: {
         color: '#F8FAFC',
@@ -971,9 +1180,21 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: '700',
     },
+    profileAvatarImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 36,
+    },
     avatarHint: {
         color: '#94A3B8',
         fontSize: 12,
+    },
+    removePhotoText: {
+        color: '#F87171',
+        fontSize: 12,
+        fontWeight: '600',
+        marginTop: -16,
+        marginBottom: 20,
     },
     inputGroup: {
         marginBottom: 16,
@@ -994,6 +1215,37 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         color: '#F8FAFC',
         fontSize: 14,
+    },
+    addressEditorRow: {
+        minHeight: 48,
+        borderRadius: 12,
+        borderWidth: 1,
+        paddingHorizontal: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    addressEditorText: {
+        flex: 1,
+        fontSize: 14,
+        marginRight: 10,
+    },
+    addressModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.55)',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+    },
+    addressModal: {
+        width: '100%',
+        maxWidth: 390,
+        maxHeight: '92%',
+        borderTopLeftRadius: 22,
+        borderTopRightRadius: 22,
+        padding: 20,
+    },
+    addressModalInput: {
+        marginBottom: 14,
     },
     disabledInput: {
         color: '#71717A',

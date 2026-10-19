@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import { getAssetUrl } from '../services/api';
 import { POSTS } from '../constants/posts';
 
 const PostsContext = createContext(null);
@@ -42,7 +43,11 @@ const mapPost = (post) => ({
     isLiked: post.is_liked,
     comments: (post.comentarios || [])
         .filter((comment) => comment.id)
-        .map((comment) => ({ ...comment, time: formatCommentTime(comment.time) })),
+        .map((comment) => ({
+            ...comment,
+            avatarImage: getAssetUrl(comment.avatarImage || ''),
+            time: formatCommentTime(comment.time),
+        })),
 });
 
 export function PostsProvider({ children }) {

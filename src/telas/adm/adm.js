@@ -23,9 +23,17 @@ import api from '../../services/api';
 
 const logoGuardia = require('../../assets/imagens/logo_guardia.png');
 
+const getInitials = (value = '') => value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('') || '?';
+
 export default function AdminDashboardScreen() {
     const navigation = useNavigation();
-    const { posts, updatePost, addPost, deletePost } = usePosts();
+    const { posts, updatePost, addPost, deletePost, refreshPosts } = usePosts();
     const [isAuthorized, setIsAuthorized] = useState(false);
 
     // Estados de Navegação Interna
@@ -51,6 +59,8 @@ export default function AdminDashboardScreen() {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [isUserDeleteVisible, setUserDeleteVisible] = useState(false);
     const [userDeleteTarget, setUserDeleteTarget] = useState(null);
+    const [isCommentDeleteVisible, setCommentDeleteVisible] = useState(false);
+    const [commentDeleteTarget, setCommentDeleteTarget] = useState(null);
     const [selectedPostId, setSelectedPostId] = useState(null);
     const [adminId, setAdminId] = useState(null);
     const [usersList, setUsersList] = useState([]);
@@ -94,7 +104,7 @@ export default function AdminDashboardScreen() {
             setUsersList(usersResponse.data.users);
             setReport(reportResponse.data.report);
         } catch (error) {
-            Alert.alert('Erro', error.response?.data?.message || 'Não foi possível carregar os dados administrativos.');
+            showFeedback(error.response?.data?.message || 'Não foi possível carregar os dados administrativos.', 'error');
         }
     };
 
@@ -312,7 +322,28 @@ export default function AdminDashboardScreen() {
             setUserDeleteVisible(false);
             setUserDeleteTarget(null);
         } catch (error) {
-            Alert.alert('Erro', error.response?.data?.message || 'Não foi possível excluir o usuário.');
+            showFeedback(error.response?.data?.message || 'Não foi possível excluir o usuário.', 'error');
+        }
+    };
+
+    const openDeleteComment = (comment) => {
+        setCommentDeleteTarget(comment);
+        setCommentDeleteVisible(true);
+    };
+
+    const confirmDeleteComment = async () => {
+        if (!commentDeleteTarget || !adminId) return;
+
+        try {
+            await api.delete(`/admin/comments/${commentDeleteTarget.id}`, {
+                data: { admin_id: adminId },
+            });
+            await refreshPosts();
+            setCommentDeleteVisible(false);
+            setCommentDeleteTarget(null);
+            showFeedback('Comentário excluído com sucesso!');
+        } catch (error) {
+            showFeedback(error.response?.data?.message || 'Não foi possível excluir o comentário.', 'error');
         }
     };
 
@@ -608,7 +639,7 @@ export default function AdminDashboardScreen() {
 
             <View style={styles.authorRow}>
                 <View style={styles.authorAvatar}>
-                    <Text style={{ color: '#FFF', fontWeight: 'bold' }}>G</Text>
+                    <Image source={logoGuardia} style={styles.authorAvatarImage} resizeMode="contain" />
                 </View>
                 <View>
                     <Text style={styles.authorName}>Equipe Guardiã</Text>
@@ -635,15 +666,28 @@ export default function AdminDashboardScreen() {
             </View>
 
             {selectedPost?.comments.length ? selectedPost.comments.map((comment, index) => (
-                <View key={`${comment.author}-${comment.time}-${index}`} style={styles.commentCard}>
+                <View key={comment.id || `${comment.author}-${comment.time}-${index}`} style={styles.commentCard}>
                     <View style={styles.commentCardHeader}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                             <View style={styles.commentAvatar}>
-                                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: 'bold' }}>{comment.avatar}</Text>
+                                {comment.avatarImage ? (
+                                    <Image source={{ uri: comment.avatarImage }} style={styles.commentAvatarImage} />
+                                ) : (
+                                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: 'bold' }}>{getInitials(comment.author)}</Text>
+                                )}
                             </View>
                             <Text style={styles.commentAuthorName}>{comment.author}</Text>
                         </View>
-                        <Text style={styles.commentTime}>{comment.time}</Text>
+                        <View style={styles.commentHeaderActions}>
+                            <Text style={styles.commentTime}>{comment.time}</Text>
+                            <Pressable
+                                style={styles.commentDeleteButton}
+                                onPress={() => openDeleteComment(comment)}
+                                accessibilityLabel="Excluir comentário"
+                            >
+                                <MaterialCommunityIcons name="delete-outline" size={16} color="#EF5350" />
+                            </Pressable>
+                        </View>
                     </View>
                     <Text style={styles.commentText}>{comment.text}</Text>
                 </View>
@@ -787,6 +831,28 @@ export default function AdminDashboardScreen() {
                             </Pressable>
                             <Pressable style={styles.deleteConfirmBtn} onPress={confirmDeleteUser}>
                                 <Text style={styles.deleteConfirmText}>Sim, excluir</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal visible={isCommentDeleteVisible} transparent animationType="fade" onRequestClose={() => setCommentDeleteVisible(false)}>
+                <View style={styles.deleteModalOverlay}>
+                    <View style={styles.deleteDialog}>
+                        <View style={styles.deleteDialogIcon}>
+                            <MaterialCommunityIcons name="comment-remove-outline" size={30} color="#EF5350" />
+                        </View>
+                        <Text style={styles.deleteDialogTitle}>Excluir comentário?</Text>
+                        <Text style={styles.deleteDialogText}>
+                            Este comentário será removido permanentemente da publicação.
+                        </Text>
+                        <View style={styles.deleteDialogActions}>
+                            <Pressable style={styles.deleteCancelBtn} onPress={() => setCommentDeleteVisible(false)}>
+                                <Text style={styles.deleteCancelText}>Cancelar</Text>
+                            </Pressable>
+                            <Pressable style={styles.deleteConfirmBtn} onPress={confirmDeleteComment}>
+                                <Text style={styles.deleteConfirmText}>Excluir</Text>
                             </Pressable>
                         </View>
                     </View>
@@ -975,6 +1041,7 @@ const styles = StyleSheet.create({
     viewPostTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', marginBottom: 12 },
     authorRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 10 },
     authorAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#A62B4F', justifyContent: 'center', alignItems: 'center' },
+    authorAvatarImage: { width: '100%', height: '100%', borderRadius: 16 },
     authorName: { fontSize: 12, fontWeight: '600', color: '#FFF' },
     authorSub: { fontSize: 10, color: '#777' },
     viewPostTextBody: { fontSize: 13, color: '#CCC', lineHeight: 20, marginBottom: 16 },
@@ -984,7 +1051,10 @@ const styles = StyleSheet.create({
     commentsSectionTitle: { fontSize: 12, fontWeight: '700', color: '#888', letterSpacing: 0.5 },
     commentCard: { backgroundColor: '#171719', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#222' },
     commentCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+    commentHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    commentDeleteButton: { padding: 3 },
     commentAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#333', justifyContent: 'center', alignItems: 'center' },
+    commentAvatarImage: { width: '100%', height: '100%', borderRadius: 12 },
     commentAuthorName: { fontSize: 12, fontWeight: '600', color: '#FFF' },
     commentTime: { fontSize: 10, color: '#666' },
     commentText: { fontSize: 12, color: '#BBB', lineHeight: 18 },

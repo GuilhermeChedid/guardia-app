@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
+import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
 
 const logoGuardia = require('../../assets/imagens/logo_guardia.png');
 
@@ -49,7 +50,7 @@ export default function LoginScreen() {
     // Função para tratar o login e verificar credenciais de Administrador
     const handleLogin = async () => {
         if (!email.trim() || !password) {
-            alert('Informe seu e-mail e sua senha.');
+            setLoginFeedback({ type: 'error', message: 'Informe seu e-mail e sua senha.' });
             return;
         }
 
@@ -127,19 +128,6 @@ export default function LoginScreen() {
             <Pressable style={styles.forgotWrap} onPress={() => setCurrentView('forgot_email')}>
                 <Text style={styles.forgotPassword}>Esqueci minha senha</Text>
             </Pressable>
-
-            {loginFeedback && (
-                <View style={[styles.feedback, loginFeedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError]}>
-                    <MaterialCommunityIcons
-                        name={loginFeedback.type === 'success' ? 'check-circle-outline' : 'alert-circle-outline'}
-                        size={20}
-                        color={loginFeedback.type === 'success' ? '#21864A' : '#A52D47'}
-                    />
-                    <Text style={[styles.feedbackText, { color: loginFeedback.type === 'success' ? '#176B3A' : '#A52D47' }]}>
-                        {loginFeedback.message}
-                    </Text>
-                </View>
-            )}
 
             {/* Botão de login atualizado com a validação do Admin */}
             <Pressable style={[styles.btnPrimary, isLoggingIn && styles.disabledBtn]} onPress={handleLogin} disabled={isLoggingIn}>
@@ -312,6 +300,7 @@ export default function LoginScreen() {
 
     return (
         <MobileFrame backgroundColor="#0B0B0C">
+            <FeedbackBanner feedback={loginFeedback} onClose={() => setLoginFeedback(null)} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.keyboardView}

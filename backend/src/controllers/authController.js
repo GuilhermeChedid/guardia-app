@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const dotenv = require('dotenv');
 const bcrypt = require('bcrypt');
 
@@ -43,56 +44,148 @@ const validateFullName = (value = '') => {
 };
 
 const verifyProofPin = async (req, res) => {
-const client = await pool.connect();
+    const client = await pool.connect();
 
-try {
-    const { usuario_id, pin } = req.body;
+    try {
+        const { usuario_id, pin } = req.body;
 
-    if (!usuario_id || !/^\d{4}$/.test(pin || '')) {
-        return res.status(400).json({
-            success: false,
-            message: 'PIN inválido.',
+        if (!usuario_id || !/^\d{4}$/.test(pin || '')) {
+            return res.status(400).json({
+                success: false,
+                message: 'PIN inválido.',
+            });
+        }
+
+        await client.query('BEGIN');
+        const result = await client.query(
+            `
+            SELECT pin_provas, tentativas_falhas_pin, bloqueio_pin_ate
+            FROM seguranca
+            WHERE usuario_id = $1
+            FOR UPDATE
+            `,
+            [usuario_id]
+        );
+
+        if (result.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado.',
+            });
+        }
+
+        const security = result.rows[0];
+        const now = new Date();
+        const lockUntil = security.bloqueio_pin_ate ? new Date(security.bloqueio_pin_ate) : null;
+
+        if (lockUntil && lockUntil > now) {
+            await client.query('ROLLBACK');
+            const remainingMinutes = Math.ceil((lockUntil.getTime() - now.getTime()) / 60000);
+            return res.status(423).json({
+                success: false,
+                bloqueado_ate: lockUntil.toISOString(),
+                message: `Acesso bloqueado por tentativas excedidas. Tente novamente em ${remainingMinutes} minuto(s).`,
+            });
+        }
+
+        const pinCorreto = await bcrypt.compare(pin, security.pin_provas);
+
+        if (!pinCorreto) {
+            const failedAttempts = (security.tentativas_falhas_pin || 0) + 1;
+            const shouldLock = failedAttempts >= 3;
+            const nextLockUntil = shouldLock
+                ? new Date(now.getTime() + 15 * 60 * 1000)
+                : null;
+
+            await client.query(
+                `
+                UPDATE seguranca
+                SET tentativas_falhas_pin = $1, bloqueio_pin_ate = $2
+                WHERE usuario_id = $3
+                `,
+                [shouldLock ? 0 : failedAttempts, nextLockUntil, usuario_id]
+            );
+            await client.query('COMMIT');
+
+            if (shouldLock) {
+                return res.status(423).json({
+                    success: false,
+                    bloqueado_ate: nextLockUntil.toISOString(),
+                    message: 'PIN incorreto 3 vezes. Acesso bloqueado por 15 minutos.',
+                });
+            }
+
+            return res.status(401).json({
+                success: false,
+                message: `PIN incorreto. Restam ${3 - failedAttempts} tentativa(s).`,
+            });
+        }
+
+        await client.query(
+            `
+            UPDATE seguranca
+            SET tentativas_falhas_pin = 0, bloqueio_pin_ate = NULL
+            WHERE usuario_id = $1
+            `,
+            [usuario_id]
+        );
+        await client.query('COMMIT');
+
+        return res.status(200).json({
+            success: true,
+            message: 'PIN validado com sucesso.',
         });
-    }
-
-    const result = await client.query(
-        `
-        SELECT s.pin_provas
-        FROM seguranca s
-        WHERE s.usuario_id = $1
-        `,
-        [usuario_id]
-    );
-
-    if (result.rows.length === 0) {
-        return res.status(404).json({
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Erro ao validar PIN das provas:', error);
+        return res.status(500).json({
             success: false,
-            message: 'Usuário não encontrado.',
+            message: 'Erro interno ao validar o PIN.',
         });
+    } finally {
+        client.release();
     }
+};
 
-    const pinCorreto = await bcrypt.compare(pin, result.rows[0].pin_provas);
+const getProofPinStatus = async (req, res) => {
+    const client = await pool.connect();
 
-    if (!pinCorreto) {
-        return res.status(401).json({
+    try {
+        const result = await client.query(
+            `SELECT bloqueio_pin_ate
+             FROM seguranca
+             WHERE usuario_id = $1`,
+            [req.params.usuarioId]
+        );
+
+        if (!result.rows.length) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado.',
+            });
+        }
+
+        const lockUntil = result.rows[0].bloqueio_pin_ate;
+        if (!lockUntil || new Date(lockUntil) <= new Date()) {
+            return res.json({ success: true, bloqueado: false });
+        }
+
+        return res.status(423).json({
             success: false,
-            message: 'PIN incorreto.',
+            bloqueado: true,
+            bloqueado_ate: new Date(lockUntil).toISOString(),
+            message: 'Acesso bloqueado por tentativas excedidas.',
         });
+    } catch (error) {
+        console.error('Erro ao consultar bloqueio do PIN:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Erro interno ao consultar o bloqueio do PIN.',
+        });
+    } finally {
+        client.release();
     }
-
-    return res.status(200).json({
-        success: true,
-        message: 'PIN validado com sucesso.',
-    });
-} catch (error) {
-    console.error('Erro ao validar PIN das provas:', error);
-    return res.status(500).json({
-        success: false,
-        message: 'Erro interno ao validar o PIN.',
-    });
-} finally {
-    client.release();
-}
 };
 
 const getProfile = async (req, res) => {
@@ -476,7 +569,10 @@ const updateProfile = async (req, res) => {
     const client = await pool.connect();
 
     try {
-        const { nome, email, telefone, estado_civil, logradouro } = req.body;
+        const {
+            nome, email, telefone, estado_civil, logradouro, cep, numero,
+            complemento, bairro, cidade, estado_uf,
+        } = req.body;
         const { usuarioId } = req.params;
 
         if (!nome?.trim() || !email?.trim() || !telefone?.trim() || !estado_civil?.trim()) {
@@ -514,11 +610,46 @@ const updateProfile = async (req, res) => {
             });
         }
 
-        if (logradouro?.trim()) {
-            await client.query(
-                'UPDATE endereco SET logradouro = $1 WHERE usuario_id = $2',
-                [logradouro.trim(), usuarioId]
-            );
+        const addressFields = [cep, logradouro, numero, bairro, cidade, estado_uf];
+        if (addressFields.some((field) => !field?.trim())) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                success: false,
+                message: 'Preencha todos os campos obrigatórios do endereço.',
+            });
+        }
+
+        const addressResult = await client.query(
+            `INSERT INTO endereco
+                (usuario_id, cep, logradouro, numero, complemento, bairro, cidade, estado_uf)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             ON CONFLICT (usuario_id) DO UPDATE SET
+                cep = EXCLUDED.cep,
+                logradouro = EXCLUDED.logradouro,
+                numero = EXCLUDED.numero,
+                complemento = EXCLUDED.complemento,
+                bairro = EXCLUDED.bairro,
+                cidade = EXCLUDED.cidade,
+                estado_uf = EXCLUDED.estado_uf
+             RETURNING usuario_id`,
+            [
+                usuarioId,
+                cep.replace(/\D/g, ''),
+                logradouro.trim(),
+                numero.trim(),
+                complemento?.trim() || null,
+                bairro.trim(),
+                cidade.trim(),
+                estado_uf.trim().toUpperCase(),
+            ]
+        );
+
+        if (!addressResult.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(500).json({
+                success: false,
+                message: 'Não foi possível salvar o endereço.',
+            });
         }
 
         await client.query('COMMIT');
@@ -543,6 +674,85 @@ const updateProfile = async (req, res) => {
             success: false,
             message: 'Erro interno ao atualizar o perfil.',
         });
+    } finally {
+        client.release();
+    }
+};
+
+const updateProfilePhoto = async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'Selecione uma foto válida.' });
+        }
+
+        const result = await client.query(
+            `UPDATE usuarios
+             SET url_foto_perfil = $1
+             WHERE id = $2
+             RETURNING url_foto_perfil`,
+            [`/uploads/profile/${req.file.filename}`, req.params.usuarioId]
+        );
+
+        if (!result.rows.length) {
+            return res.status(404).json({ success: false, message: 'Usuário não encontrado.' });
+        }
+
+        return res.json({
+            success: true,
+            photoUrl: result.rows[0].url_foto_perfil,
+            message: 'Foto de perfil atualizada com sucesso.',
+        });
+    } catch (error) {
+        console.error('Erro ao salvar foto de perfil:', error);
+        return res.status(500).json({ success: false, message: 'Não foi possível salvar a foto de perfil.' });
+    } finally {
+        client.release();
+    }
+};
+
+const deleteProfilePhoto = async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+        const previous = await client.query(
+            'SELECT url_foto_perfil FROM usuarios WHERE id = $1',
+            [req.params.usuarioId]
+        );
+        if (!previous.rows.length) {
+            return res.status(404).json({ success: false, message: 'Usuário não encontrado.' });
+        }
+        const oldPhotoUrl = previous.rows[0]?.url_foto_perfil;
+        const result = await client.query(
+            `UPDATE usuarios
+             SET url_foto_perfil = NULL
+             WHERE id = $1
+             RETURNING url_foto_perfil`,
+            [req.params.usuarioId]
+        );
+
+        if (!result.rows.length) {
+            return res.status(404).json({ success: false, message: 'Usuário não encontrado.' });
+        }
+
+        if (oldPhotoUrl?.startsWith('/uploads/profile/')) {
+            const oldPhotoPath = path.resolve(__dirname, '../../', oldPhotoUrl.slice('/uploads/'.length));
+            fs.unlink(oldPhotoPath, (error) => {
+                if (error && error.code !== 'ENOENT') {
+                    console.error('Erro ao remover arquivo da foto de perfil:', error);
+                }
+            });
+        }
+
+        return res.json({
+            success: true,
+            photoUrl: null,
+            message: 'Foto de perfil removida. As iniciais do seu nome foram restauradas.',
+        });
+    } catch (error) {
+        console.error('Erro ao remover foto de perfil:', error);
+        return res.status(500).json({ success: false, message: 'Não foi possível remover a foto de perfil.' });
     } finally {
         client.release();
     }
@@ -808,8 +1018,11 @@ module.exports = {
     register,
     login,
     verifyProofPin,
+    getProofPinStatus,
     getProfile,
     updateProfile,
+    updateProfilePhoto,
+    deleteProfilePhoto,
     getContacts,
     createContact,
     updateContact,

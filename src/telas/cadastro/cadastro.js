@@ -19,6 +19,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { MARITAL_STATUS_OPTIONS } from '../../constants/profileOptions';
 import { cepMask, cpfMask, phoneMask } from '../../utils/masks';
 import { validateFullName } from '../../utils/nameValidation';
+import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
 
 const BRAZILIAN_STATES = [
     ['AC', 'Acre'], ['AL', 'Alagoas'], ['AP', 'Amapá'], ['AM', 'Amazonas'],
@@ -82,9 +83,19 @@ export default function CadastroScreen() {
     const [pin, setPin] = useState('');
     const [confirmPin, setConfirmPin] = useState('');
     const [termsAccepted, setTermsAccepted] = useState(false);
+    const [feedback, setFeedback] = useState(null);
+    const feedbackTimer = React.useRef(null);
 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    const showFeedback = (message, type = 'error') => {
+        setFeedback({ message, type });
+        clearTimeout(feedbackTimer.current);
+        feedbackTimer.current = setTimeout(() => setFeedback(null), 3500);
+    };
+
+    useEffect(() => () => clearTimeout(feedbackTimer.current), []);
 
     const handleCepChange = async (value) => {
         const formattedCep = cepMask(value);
@@ -104,7 +115,7 @@ export default function CadastroScreen() {
 
             const address = await response.json();
             if (address.erro) {
-                alert('CEP não encontrado.');
+                showFeedback('CEP não encontrado.');
                 return;
             }
 
@@ -114,7 +125,7 @@ export default function CadastroScreen() {
             setState(address.uf || '');
         } catch (error) {
             console.error('Erro ao consultar CEP:', error);
-            alert('Não foi possível consultar o CEP. Verifique sua conexão e tente novamente.');
+            showFeedback('Não foi possível consultar o CEP. Verifique sua conexão e tente novamente.');
         }
     };
 
@@ -122,26 +133,26 @@ export default function CadastroScreen() {
 
     const nameError = validateFullName(name);
     if (nameError) {
-        alert(nameError);
+        showFeedback(nameError);
         return;
     }
 
     if (!termsAccepted) {
-    alert('É necessário aceitar os Termos de Uso.');
+    showFeedback('É necessário aceitar os Termos de Uso.');
     return;
     }    
     if (password !== confirmPassword) {
-        alert('As senhas não coincidem.');
+        showFeedback('As senhas não coincidem.');
         return;
     }
 
     if (pin !== confirmPin) {
-        alert('Os PINs não coincidem.');
+        showFeedback('Os PINs não coincidem.');
         return;
     }
 
     if (pin.length !== 4) {
-        alert('O PIN deve ter 4 dígitos.');
+        showFeedback('O PIN deve ter 4 dígitos.');
         return;
     }
 
@@ -166,7 +177,7 @@ export default function CadastroScreen() {
             termos_aceitos: termsAccepted,
         });
 
-        alert(response.data.message || 'Cadastro realizado com sucesso!');
+        showFeedback(response.data.message || 'Cadastro realizado com sucesso!', 'success');
 
         navigation.navigate('Login');
     } catch (error) {
@@ -176,7 +187,7 @@ export default function CadastroScreen() {
             error.response?.data?.message ||
             'Não foi possível realizar o cadastro.';
 
-        alert(message);
+        showFeedback(message);
     } finally {
         setLoading(false);
     }
@@ -184,6 +195,7 @@ export default function CadastroScreen() {
 
     return (
         <MobileFrame backgroundColor="#0B0B0C">
+            <FeedbackBanner feedback={feedback} onClose={() => setFeedback(null)} />
             <View style={[styles.screen, { backgroundColor: colors.background }]}>
                 <ScrollView
                     style={styles.scrollContainer}

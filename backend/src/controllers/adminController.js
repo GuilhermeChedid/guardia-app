@@ -38,6 +38,31 @@ const deleteUser = async (req, res) => {
     } finally { client.release(); }
 };
 
+const deleteComment = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        if (!(await requireAdmin(client, req.body.admin_id))) {
+            return res.status(403).json({ success: false, message: 'Acesso administrativo obrigatório.' });
+        }
+
+        const result = await client.query(
+            'DELETE FROM comentarios WHERE id = $1 RETURNING id',
+            [req.params.commentId]
+        );
+
+        if (!result.rows.length) {
+            return res.status(404).json({ success: false, message: 'Comentário não encontrado.' });
+        }
+
+        return res.json({ success: true });
+    } catch (error) {
+        console.error('Erro ao excluir comentário:', error);
+        return res.status(500).json({ success: false, message: 'Erro interno ao excluir comentário.' });
+    } finally {
+        client.release();
+    }
+};
+
 const getReports = async (req, res) => {
     const client = await pool.connect();
     try {
@@ -82,4 +107,4 @@ const registerSos = async (req, res) => {
     } finally { client.release(); }
 };
 
-module.exports = { listUsers, deleteUser, getReports, registerSos };
+module.exports = { listUsers, deleteUser, deleteComment, getReports, registerSos };
