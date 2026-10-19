@@ -12,7 +12,7 @@ import {
     Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import * as FaceDetector from 'expo-face-detector';
+//import * as FaceDetector from 'expo-face-detector';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';

@@ -7,7 +7,7 @@ dotenv.config({
     path: path.resolve(__dirname, '../../../.env'),
 });
 
-const pool = require('../../../db');
+const pool = require('../../db');
 const { encrypt, decrypt } = require('../utils/encryption');
 
 const blockedNameTerms = new Set([
@@ -271,11 +271,11 @@ const register = async (req, res) => {
         } = req.body;
 
         if (termos_aceitos !== true) {
-    return res.status(400).json({
-        success: false,
-        message: 'É necessário aceitar os Termos de Uso.',
-    });
-    }
+            return res.status(400).json({
+                success: false,
+                message: 'É necessário aceitar os Termos de Uso.',
+            });
+        }
 
         // 1. Verificar campos obrigatórios
         if (
@@ -492,24 +492,24 @@ const register = async (req, res) => {
         // Devolve a conexão ao pool
         client.release();
     }
-  
+
 };
-    const login = async (req, res) => {
-        const client = await pool.connect();
+const login = async (req, res) => {
+    const client = await pool.connect();
 
-        try {
-            const { email, senha } = req.body;
+    try {
+        const { email, senha } = req.body;
 
-            if (!email || !senha) {
-                return res.status(400).json({
-                    mensagem: 'E-mail e senha são obrigatórios.',
-                });
-            }
+        if (!email || !senha) {
+            return res.status(400).json({
+                mensagem: 'E-mail e senha são obrigatórios.',
+            });
+        }
 
-            const emailNormalizado = email.trim().toLowerCase();
+        const emailNormalizado = email.trim().toLowerCase();
 
-            const result = await client.query(
-                `
+        const result = await client.query(
+            `
                 SELECT
                     u.id,
                     u.nome,
@@ -521,49 +521,49 @@ const register = async (req, res) => {
                     ON s.usuario_id = u.id
                 WHERE LOWER(u.email) = $1
                 `,
-                [emailNormalizado]
-            );
+            [emailNormalizado]
+        );
 
-            if (result.rows.length === 0) {
-                return res.status(401).json({
-                    mensagem: 'E-mail ou senha inválidos.',
-                });
-            }
-
-            const usuario = result.rows[0];
-
-            const senhaCorreta = await bcrypt.compare(
-                senha,
-                usuario.senha
-            );
-
-            if (!senhaCorreta) {
-                return res.status(401).json({
-                    mensagem: 'E-mail ou senha inválidos.',
-                });
-            }
-
-            return res.status(200).json({
-                mensagem: 'Login realizado com sucesso.',
-                usuario: {
-                    id: usuario.id,
-                    nome: usuario.nome,
-                    email: usuario.email,
-                    is_admin: usuario.is_admin,
-                },
+        if (result.rows.length === 0) {
+            return res.status(401).json({
+                mensagem: 'E-mail ou senha inválidos.',
             });
-
-        } catch (error) {
-            console.error('Erro no login:', error);
-
-            return res.status(500).json({
-                mensagem: 'Erro interno ao realizar o login.',
-            });
-
-        } finally {
-            client.release();
         }
-    };
+
+        const usuario = result.rows[0];
+
+        const senhaCorreta = await bcrypt.compare(
+            senha,
+            usuario.senha
+        );
+
+        if (!senhaCorreta) {
+            return res.status(401).json({
+                mensagem: 'E-mail ou senha inválidos.',
+            });
+        }
+
+        return res.status(200).json({
+            mensagem: 'Login realizado com sucesso.',
+            usuario: {
+                id: usuario.id,
+                nome: usuario.nome,
+                email: usuario.email,
+                is_admin: usuario.is_admin,
+            },
+        });
+
+    } catch (error) {
+        console.error('Erro no login:', error);
+
+        return res.status(500).json({
+            mensagem: 'Erro interno ao realizar o login.',
+        });
+
+    } finally {
+        client.release();
+    }
+};
 
 const updateProfile = async (req, res) => {
     const client = await pool.connect();

@@ -1,4 +1,4 @@
-const pool = require('../../../db');
+const pool = require('../../db');
 
 const isAdmin = async (client, usuarioId) => {
     const result = await client.query('SELECT is_admin FROM usuarios WHERE id = $1', [usuarioId]);
