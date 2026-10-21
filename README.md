@@ -37,6 +37,9 @@ Aplicativo mobile para apoio e segurança, com fluxo de login, cadastro, emergê
    ```bash
    npm run ios
    ```
+    ```bash
+   npm run web
+   ```
 
 ## Variáveis de ambiente
 
