@@ -1,4 +1,4 @@
-# Guardia App
+# Guardiã App
 
 Aplicativo mobile para apoio e segurança, com fluxo de login, cadastro, emergência, perfil e suporte.
 
