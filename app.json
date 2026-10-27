@@ -1,28 +1,20 @@
+
 {
-  "plugins": [
-    "expo-font",
-    "expo-asset",
-    "expo-status-bar"
-  ],
-  "android": {
-    "softwareKeyboardLayoutMode": "resize"
-  },
-  "extra": {
-    "eas": {
-      "projectId": "855360c5-99a6-436c-a7e2-97e814995f75"
-    }
-  },
   "expo": {
+    "plugins": [
+      "expo-font",
+      "expo-asset",
+      "expo-status-bar",
+      "expo-sharing"
+    ],
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "package": "com.guilhermechedid.guardiaapp"
     },
     "extra": {
       "eas": {
         "projectId": "855360c5-99a6-436c-a7e2-97e814995f75"
       }
-    },
-    "plugins": [
-      "expo-sharing"
-    ]
+    }
   }
 }

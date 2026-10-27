@@ -2,6 +2,8 @@ const path = require('path');
 const fs = require('fs');
 const dotenv = require('dotenv');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const { enviarCodigoRecuperacao } = require('../utils/email');
 
 dotenv.config({
     path: path.resolve(__dirname, '../../../.env'),
@@ -1014,6 +1016,758 @@ const getEvidenceHistory = async (req, res) => {
     }
 };
 
+
+const gerarHashCodigo = (codigo) =>
+    crypto.createHash('sha256').update(codigo).digest('hex');
+
+const codigoCorreto = (codigo, hashSalvo) => {
+    const hashInformado = Buffer.from(gerarHashCodigo(codigo), 'hex');
+    const hashOriginal = Buffer.from(hashSalvo, 'hex');
+
+    return hashInformado.length === hashOriginal.length &&
+        crypto.timingSafeEqual(hashInformado, hashOriginal);
+};
+
+
+
+const alterarSenha = async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+        const {
+            usuarioId,
+            currentPassword,
+            newPassword,
+            confirmPassword,
+        } = req.body;
+
+        if (!usuarioId || !currentPassword || !newPassword || !confirmPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Preencha todos os campos.',
+            });
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'A nova senha e a confirmação não coincidem.',
+            });
+        }
+
+        const senhaValida =
+            newPassword.length >= 8 &&
+            /[A-Z]/.test(newPassword) &&
+            /[a-z]/.test(newPassword) &&
+            /[0-9]/.test(newPassword) &&
+            /[^A-Za-z0-9]/.test(newPassword) &&
+            !/\s/.test(newPassword);
+
+        if (!senhaValida) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    'A senha deve ter pelo menos 8 caracteres, incluindo maiúscula, minúscula, número e caractere especial, sem espaços.',
+            });
+        }
+
+        const resultado = await client.query(
+            `SELECT senha
+             FROM seguranca
+             WHERE usuario_id = $1`,
+            [usuarioId]
+        );
+
+        if (resultado.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado.',
+            });
+        }
+
+        const senhaCorreta = await bcrypt.compare(
+            currentPassword,
+            resultado.rows[0].senha
+        );
+
+        if (!senhaCorreta) {
+            return res.status(401).json({
+                success: false,
+                message: 'A senha atual está incorreta.',
+            });
+        }
+
+        const senhaHash = await bcrypt.hash(newPassword, 10);
+
+        await client.query(
+            `UPDATE seguranca
+             SET senha = $1
+             WHERE usuario_id = $2`,
+            [senhaHash, usuarioId]
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: 'Senha alterada com sucesso.',
+        });
+    } catch (error) {
+        console.error('Erro ao alterar senha:', error);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Erro interno ao alterar a senha.',
+        });
+    } finally {
+        client.release();
+    }
+};
+
+const solicitarRecuperacaoSenha = async (req, res) => {
+    const email = String(req.body.email || '').trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Informe um e-mail válido.',
+        });
+    }
+
+    const client = await pool.connect();
+    let tokenId = null;
+
+    try {
+        await client.query('BEGIN');
+
+        const resultado = await client.query(
+            'SELECT id FROM usuarios WHERE LOWER(email) = $1',
+            [email]
+        );
+
+        // Não revela se o e-mail está cadastrado.
+        if (!resultado.rows.length) {
+            await client.query('COMMIT');
+            return res.json({
+                success: true,
+                message: 'Se o e-mail estiver cadastrado, você receberá um código de recuperação.',
+            });
+        }
+
+        const usuarioId = resultado.rows[0].id;
+        const codigo = crypto.randomInt(0, 1000000)
+            .toString()
+            .padStart(6, '0');
+
+        const hash = gerarHashCodigo(codigo);
+        const expiracao = new Date(Date.now() + 10 * 60 * 1000);
+
+        await client.query(
+            `UPDATE tokens_recuperacao
+             SET utilizado = TRUE
+             WHERE usuario_id = $1 AND tipo = 'senha' AND utilizado = FALSE`,
+            [usuarioId]
+        );
+
+        const inserido = await client.query(
+            `INSERT INTO tokens_recuperacao
+                (usuario_id, codigo, tipo, utilizado, data_expiracao, tentativas)
+             VALUES ($1, $2, 'senha', FALSE, $3, 0)
+             RETURNING id`,
+            [usuarioId, hash, expiracao]
+        );
+
+        tokenId = inserido.rows[0].id;
+
+        await client.query('COMMIT');
+
+        try {
+            await enviarCodigoRecuperacao(email, codigo);
+        } catch (emailError) {
+            console.error('Falha no envio do e-mail de recuperação:', emailError.message);
+
+            // Impede que um código que não foi enviado possa ser utilizado.
+            await client.query(
+                `UPDATE tokens_recuperacao
+                 SET utilizado = TRUE
+                 WHERE id = $1`,
+                [tokenId]
+            );
+        }
+
+        return res.json({
+            success: true,
+            message: 'Se o e-mail estiver cadastrado, você receberá um código de recuperação.',
+        });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Erro ao solicitar recuperação de senha:', error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Não foi possível processar a solicitação agora.',
+        });
+    } finally {
+        client.release();
+    }
+};
+
+const verificarCodigoRecuperacao = async (req, res) => {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const codigo = String(req.body.code || '').trim();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+        !/^\d{6}$/.test(codigo)) {
+        return res.status(400).json({
+            success: false,
+            message: 'E-mail ou código inválido.',
+        });
+    }
+
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const resultado = await client.query(
+            `SELECT tr.id, tr.codigo, tr.data_expiracao, tr.tentativas
+             FROM tokens_recuperacao tr
+             JOIN usuarios u ON u.id = tr.usuario_id
+             WHERE LOWER(u.email) = $1
+               AND tr.tipo = 'senha'
+               AND tr.utilizado = FALSE
+             ORDER BY tr.data_expiracao DESC
+             LIMIT 1
+             FOR UPDATE OF tr`,
+            [email]
+        );
+
+        if (!resultado.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                success: false,
+                message: 'Código inválido ou expirado. Solicite um novo código.',
+            });
+        }
+
+        const token = resultado.rows[0];
+
+       if (new Date(token.data_expiracao) <= new Date() ||
+    token.tentativas >= 5) {
+    await client.query('ROLLBACK');
+    return res.status(400).json({
+        success: false,
+        message: 'Código expirado ou limite de tentativas atingido.',
+    });
+}
+
+if (!codigoCorreto(codigo, token.codigo)) {
+    await client.query(
+        `UPDATE tokens_recuperacao
+         SET tentativas = tentativas + 1
+         WHERE id = $1`,
+        [token.id]
+    );
+
+    await client.query('COMMIT');
+
+    return res.status(400).json({
+        success: false,
+        message: 'Código incorreto.',
+    });
+}
+
+        await client.query('COMMIT');
+
+        return res.json({
+            success: true,
+            message: 'Código validado. Você já pode redefinir sua senha.',
+        });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Erro ao verificar código de recuperação:', error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Não foi possível verificar o código.',
+        });
+    } finally {
+        client.release();
+    }
+};
+
+const redefinirSenha = async (req, res) => {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const codigo = String(req.body.code || '').trim();
+    const novaSenha = req.body.newPassword;
+    const confirmarSenha = req.body.confirmPassword;
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+        !/^\d{6}$/.test(codigo)) {
+        return res.status(400).json({
+            success: false,
+            message: 'E-mail ou código inválido.',
+        });
+    }
+
+    if (typeof novaSenha !== 'string' ||
+        novaSenha.length < 8 ||
+        !/[A-Z]/.test(novaSenha) ||
+        !/[a-z]/.test(novaSenha) ||
+        !/[0-9]/.test(novaSenha) ||
+        !/[^A-Za-z0-9]/.test(novaSenha) ||
+        /\s/.test(novaSenha)) {
+        return res.status(400).json({
+            success: false,
+            message: 'A senha deve ter pelo menos 8 caracteres, incluindo maiúscula, minúscula, número e caractere especial, sem espaços.',
+        });
+    }
+
+    if (novaSenha !== confirmarSenha) {
+        return res.status(400).json({
+            success: false,
+            message: 'As senhas não coincidem.',
+        });
+    }
+
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const resultado = await client.query(
+            `SELECT tr.id, tr.usuario_id, tr.codigo,
+                    tr.data_expiracao, tr.tentativas
+             FROM tokens_recuperacao tr
+             JOIN usuarios u ON u.id = tr.usuario_id
+             WHERE LOWER(u.email) = $1
+               AND tr.tipo = 'senha'
+               AND tr.utilizado = FALSE
+             ORDER BY tr.data_expiracao DESC
+             LIMIT 1
+             FOR UPDATE OF tr`,
+            [email]
+        );
+
+        if (!resultado.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                success: false,
+                message: 'Código inválido ou expirado. Solicite um novo código.',
+            });
+        }
+
+        const token = resultado.rows[0];
+
+        if (new Date(token.data_expiracao) <= new Date() ||
+            token.tentativas >= 5 ||
+            !codigoCorreto(codigo, token.codigo)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                success: false,
+                message: 'Código inválido, expirado ou bloqueado.',
+            });
+        }
+
+        const senhaHash = await bcrypt.hash(novaSenha, 10);
+
+        await client.query(
+            'UPDATE seguranca SET senha = $1 WHERE usuario_id = $2',
+            [senhaHash, token.usuario_id]
+        );
+
+        await client.query(
+            `UPDATE tokens_recuperacao
+             SET utilizado = TRUE
+             WHERE usuario_id = $1 AND tipo = 'senha' AND utilizado = FALSE`,
+            [token.usuario_id]
+        );
+
+        await client.query('COMMIT');
+
+        return res.json({
+            success: true,
+            message: 'Senha redefinida com sucesso. Entre com sua nova senha.',
+        });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Erro ao redefinir senha:', error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Não foi possível redefinir a senha.',
+        });
+    } finally {
+        client.release();
+    }
+};
+
+const solicitarRecuperacaoPin = async (req, res) => {
+    const email = String(req.body.email || '').trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Informe um e-mail válido.',
+        });
+    }
+
+    const client = await pool.connect();
+    let tokenId = null;
+
+    try {
+        await client.query('BEGIN');
+
+        const resultado = await client.query(
+            'SELECT id FROM usuarios WHERE LOWER(email) = $1',
+            [email]
+        );
+
+        // Não revela se o e-mail está cadastrado.
+        if (!resultado.rows.length) {
+            await client.query('COMMIT');
+            return res.json({
+                success: true,
+                message: 'Se o e-mail estiver cadastrado, você receberá um código de recuperação.',
+            });
+        }
+
+        const usuarioId = resultado.rows[0].id;
+
+        // Gera um código aleatório de seis dígitos.
+        const codigo = crypto.randomInt(0, 1000000)
+            .toString()
+            .padStart(6, '0');
+
+        const hash = gerarHashCodigo(codigo);
+        const expiracao = new Date(Date.now() + 10 * 60 * 1000);
+
+        // Invalida somente códigos antigos de recuperação do PIN.
+        await client.query(
+            `UPDATE tokens_recuperacao
+             SET utilizado = TRUE
+             WHERE usuario_id = $1
+               AND tipo = 'pin_provas'
+               AND utilizado = FALSE`,
+            [usuarioId]
+        );
+
+        const inserido = await client.query(
+            `INSERT INTO tokens_recuperacao
+                (usuario_id, codigo, tipo, utilizado, data_expiracao, tentativas)
+             VALUES ($1, $2, 'pin_provas', FALSE, $3, 0)
+             RETURNING id`,
+            [usuarioId, hash, expiracao]
+        );
+
+        tokenId = inserido.rows[0].id;
+
+        await client.query('COMMIT');
+
+        try {
+            await enviarCodigoRecuperacao(email, codigo);
+        } catch (emailError) {
+            console.error(
+                'Falha no envio do e-mail de recuperação do PIN:',
+                emailError.message
+            );
+
+            await client.query(
+                `UPDATE tokens_recuperacao
+                 SET utilizado = TRUE
+                 WHERE id = $1`,
+                [tokenId]
+            );
+        }
+
+        return res.json({
+            success: true,
+            message: 'Se o e-mail estiver cadastrado, você receberá um código de recuperação.',
+        });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Erro ao solicitar recuperação do PIN:', error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Não foi possível processar a solicitação agora.',
+        });
+    } finally {
+        client.release();
+    }
+};
+
+const verificarCodigoRecuperacaoPin = async (req, res) => {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const codigo = String(req.body.code || '').trim();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+        !/^\d{6}$/.test(codigo)) {
+        return res.status(400).json({
+            success: false,
+            message: 'E-mail ou código inválido.',
+        });
+    }
+
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const resultado = await client.query(
+            `SELECT tr.id, tr.codigo, tr.data_expiracao, tr.tentativas
+             FROM tokens_recuperacao tr
+             JOIN usuarios u ON u.id = tr.usuario_id
+             WHERE LOWER(u.email) = $1
+               AND tr.tipo = 'pin_provas'
+               AND tr.utilizado = FALSE
+             ORDER BY tr.data_expiracao DESC
+             LIMIT 1
+             FOR UPDATE OF tr`,
+            [email]
+        );
+
+        if (!resultado.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                success: false,
+                message: 'Código inválido ou expirado. Solicite um novo código.',
+            });
+        }
+
+        const token = resultado.rows[0];
+
+        if (new Date(token.data_expiracao) <= new Date() ||
+            token.tentativas >= 5) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                success: false,
+                message: 'Código expirado ou limite de tentativas atingido.',
+            });
+        }
+
+        if (!codigoCorreto(codigo, token.codigo)) {
+            await client.query(
+                `UPDATE tokens_recuperacao
+                 SET tentativas = tentativas + 1
+                 WHERE id = $1`,
+                [token.id]
+            );
+
+            await client.query('COMMIT');
+
+            return res.status(400).json({
+                success: false,
+                message: 'Código incorreto.',
+            });
+        }
+
+        await client.query('COMMIT');
+
+        return res.json({
+            success: true,
+            message: 'Código validado. Você já pode redefinir seu PIN.',
+        });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Erro ao verificar código de recuperação do PIN:', error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Não foi possível verificar o código.',
+        });
+    } finally {
+        client.release();
+    }
+};
+
+const redefinirPin = async (req, res) => {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const codigo = String(req.body.code || '').trim();
+    const novoPin = String(req.body.newPin || '');
+    const confirmarPin = String(req.body.confirmPin || '');
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+        !/^\d{6}$/.test(codigo)) {
+        return res.status(400).json({
+            success: false,
+            message: 'E-mail ou código inválido.',
+        });
+    }
+
+    // O PIN de provas atual do projeto usa exatamente quatro dígitos.
+    if (!/^\d{4}$/.test(novoPin)) {
+        return res.status(400).json({
+            success: false,
+            message: 'O PIN deve conter exatamente 4 dígitos numéricos.',
+        });
+    }
+
+    if (novoPin !== confirmarPin) {
+        return res.status(400).json({
+            success: false,
+            message: 'Os PINs não coincidem.',
+        });
+    }
+
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const resultado = await client.query(
+            `SELECT tr.id, tr.usuario_id, tr.codigo,
+                    tr.data_expiracao, tr.tentativas
+             FROM tokens_recuperacao tr
+             JOIN usuarios u ON u.id = tr.usuario_id
+             WHERE LOWER(u.email) = $1
+               AND tr.tipo = 'pin_provas'
+               AND tr.utilizado = FALSE
+             ORDER BY tr.data_expiracao DESC
+             LIMIT 1
+             FOR UPDATE OF tr`,
+            [email]
+        );
+
+        if (!resultado.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                success: false,
+                message: 'Código inválido ou expirado. Solicite um novo código.',
+            });
+        }
+
+        const token = resultado.rows[0];
+
+        if (new Date(token.data_expiracao) <= new Date() ||
+            token.tentativas >= 5 ||
+            !codigoCorreto(codigo, token.codigo)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                success: false,
+                message: 'Código inválido, expirado ou bloqueado.',
+            });
+        }
+
+        const pinHash = await bcrypt.hash(novoPin, 10);
+
+        await client.query(
+            `UPDATE seguranca
+             SET pin_provas = $1,
+                 tentativas_falhas_pin = 0,
+                 bloqueio_pin_ate = NULL
+             WHERE usuario_id = $2`,
+            [pinHash, token.usuario_id]
+        );
+
+        // Invalida todos os códigos de recuperação de PIN ainda ativos.
+        await client.query(
+            `UPDATE tokens_recuperacao
+             SET utilizado = TRUE
+             WHERE usuario_id = $1
+               AND tipo = 'pin_provas'
+               AND utilizado = FALSE`,
+            [token.usuario_id]
+        );
+
+        await client.query('COMMIT');
+
+        return res.json({
+            success: true,
+            message: 'PIN redefinido com sucesso.',
+        });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Erro ao redefinir PIN:', error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Não foi possível redefinir o PIN.',
+        });
+    } finally {
+        client.release();
+    }
+};
+
+
+const alterarPin = async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+        const { usuarioId, currentPin, newPin, confirmPin } = req.body;
+
+        if (!usuarioId || !currentPin || !newPin || !confirmPin) {
+            return res.status(400).json({
+                success: false,
+                message: 'Preencha todos os campos.',
+            });
+        }
+
+        if (!/^\d{4}$/.test(currentPin) || !/^\d{4}$/.test(newPin)) {
+            return res.status(400).json({
+                success: false,
+                message: 'O PIN deve conter exatamente 4 dígitos numéricos.',
+            });
+        }
+
+        if (newPin !== confirmPin) {
+            return res.status(400).json({
+                success: false,
+                message: 'O novo PIN e a confirmação não coincidem.',
+            });
+        }
+
+        const resultado = await client.query(
+            `SELECT pin_provas
+             FROM seguranca
+             WHERE usuario_id = $1`,
+            [usuarioId]
+        );
+
+        if (resultado.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado.',
+            });
+        }
+
+        const pinCorreto = await bcrypt.compare(
+            currentPin,
+            resultado.rows[0].pin_provas
+        );
+
+        if (!pinCorreto) {
+            return res.status(401).json({
+                success: false,
+                message: 'O PIN atual está incorreto.',
+            });
+        }
+
+        const pinHash = await bcrypt.hash(newPin, 10);
+
+        await client.query(
+            `UPDATE seguranca
+             SET pin_provas = $1,
+                 tentativas_falhas_pin = 0,
+                 bloqueio_pin_ate = NULL
+             WHERE usuario_id = $2`,
+            [pinHash, usuarioId]
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: 'PIN alterado com sucesso.',
+        });
+    } catch (error) {
+        console.error('Erro ao alterar PIN:', error);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Erro interno ao alterar o PIN.',
+        });
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
     register,
     login,
@@ -1032,4 +1786,12 @@ module.exports = {
     updateEvidence,
     deleteEvidence,
     getEvidenceHistory,
+    solicitarRecuperacaoSenha,
+    verificarCodigoRecuperacao,
+    redefinirSenha,
+    solicitarRecuperacaoPin,
+    verificarCodigoRecuperacaoPin,
+    redefinirPin,
+    alterarSenha,
+    alterarPin,
 };

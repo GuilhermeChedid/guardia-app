@@ -25,6 +25,8 @@ services:
       - PORT=3000
       - DATABASE_URL=postgres://root:rootpassword@db_guardia:5432/guardia_db
       - EVIDENCE_ENCRYPTION_KEY=MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=
+      - GMAIL_USER=suporteguardiaofficial@gmail.com
+      - GMAIL_APP_PASSWORD=rsqafgxhvqfiumqz
     depends_on:
       - db_guardia
     networks:

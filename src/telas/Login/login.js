@@ -26,10 +26,9 @@ export default function LoginScreen() {
     const navigation = useNavigation();
     const { colors } = useTheme();
 
-    // Estados do fluxo
-    const [currentView, setCurrentView] = useState('login'); // 'login', 'forgot_email', 'forgot_code', 'forgot_new_password'
+    const [currentView, setCurrentView] = useState('login');
 
-    // Estados do Login
+    // Estados do login
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -37,64 +36,321 @@ export default function LoginScreen() {
     const [isLoggingIn, setIsLoggingIn] = useState(false);
     const navigationTimer = useRef(null);
 
-    // Estados de Recuperação
+    // Estados de recuperação de senha
     const [forgotEmail, setForgotEmail] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [isRecovering, setIsRecovering] = useState(false);
 
-    useEffect(() => () => clearTimeout(navigationTimer.current), []);
+    useEffect(() => {
+        return () => clearTimeout(navigationTimer.current);
+    }, []);
 
-    // Função para tratar o login e verificar credenciais de Administrador
+    // LOGIN
     const handleLogin = async () => {
-        if (!email.trim() || !password) {
-            setLoginFeedback({ type: 'error', message: 'Informe seu e-mail e sua senha.' });
+        const emailNormalizado = email.trim().toLowerCase();
+
+        if (!emailNormalizado || !password) {
+            setLoginFeedback({
+                type: 'error',
+                message: 'Informe seu e-mail e sua senha.',
+            });
             return;
         }
 
         try {
             setIsLoggingIn(true);
             setLoginFeedback(null);
+
             const response = await api.post('/auth/login', {
-                email: email.trim().toLowerCase(),
+                email: emailNormalizado,
                 senha: password,
             });
 
-            console.log('Login realizado:', response.data);
-            await AsyncStorage.setItem('@guardia/auth_user', JSON.stringify(response.data.usuario));
+            const usuario = response.data?.usuario;
 
-            setLoginFeedback({ type: 'success', message: 'Login realizado com sucesso!' });
+            if (!usuario?.id) {
+                throw new Error(
+                    'O servidor não retornou os dados do usuário.'
+                );
+            }
+
+            await AsyncStorage.setItem(
+                '@guardia/auth_user',
+                JSON.stringify(usuario)
+            );
+
+            setLoginFeedback({
+                type: 'success',
+                message:
+                    response.data?.mensagem ||
+                    'Login realizado com sucesso!',
+            });
+
             navigationTimer.current = setTimeout(() => {
                 navigation.reset({
                     index: 0,
-                    routes: [{ name: response.data.usuario.is_admin ? 'Admin' : 'Home' }],
+                    routes: [
+                        {
+                            name: usuario.is_admin ? 'Admin' : 'Home',
+                        },
+                    ],
                 });
-            }, 900);
-
+            }, 700);
         } catch (error) {
-            console.error('Erro no login:', error);
+            console.error(
+                'Erro no login:',
+                error.response?.data || error.message
+            );
 
-            const mensagem =
-                error.response?.data?.mensagem ||
-                'E-mail ou senha inválidos.';
-
-            setLoginFeedback({ type: 'error', message: mensagem });
+            setLoginFeedback({
+                type: 'error',
+                message:
+                    error.response?.data?.mensagem ||
+                    error.response?.data?.message ||
+                    error.message ||
+                    'E-mail ou senha inválidos.',
+            });
         } finally {
             setIsLoggingIn(false);
         }
     };
 
-    const renderLogin = () => (
+    // SOLICITAR CÓDIGO DE RECUPERAÇÃO
+    const handleRequestRecoveryCode = async () => {
+        const emailNormalizado = forgotEmail.trim().toLowerCase();
+
+        if (
+            !emailNormalizado ||
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado)
+        ) {
+            setLoginFeedback({
+                type: 'error',
+                message: 'Informe um e-mail válido.',
+            });
+            return;
+        }
+
+        try {
+            setIsRecovering(true);
+            setLoginFeedback(null);
+
+            const response = await api.post(
+                '/auth/password-recovery/request',
+                {
+                    email: emailNormalizado,
+                }
+            );
+
+            setVerificationCode('');
+            setCurrentView('forgot_code');
+
+            setLoginFeedback({
+                type: 'success',
+                message:
+                    response.data?.message ||
+                    response.data?.mensagem ||
+                    'Confira seu e-mail para obter o código.',
+            });
+        } catch (error) {
+            console.error(
+                'Erro ao solicitar recuperação:',
+                error.response?.data || error.message
+            );
+
+            setLoginFeedback({
+                type: 'error',
+                message:
+                    error.response?.data?.message ||
+                    error.response?.data?.mensagem ||
+                    'Não foi possível enviar o código. Tente novamente.',
+            });
+        } finally {
+            setIsRecovering(false);
+        }
+    };
+
+    // VERIFICAR CÓDIGO
+    const handleVerifyRecoveryCode = async () => {
+        if (!/^\d{6}$/.test(verificationCode.trim())) {
+            setLoginFeedback({
+                type: 'error',
+                message:
+                    'Informe o código de 6 dígitos recebido por e-mail.',
+            });
+            return;
+        }
+
+        try {
+            setIsRecovering(true);
+            setLoginFeedback(null);
+
+            const response = await api.post(
+                '/auth/password-recovery/verify',
+                {
+                    email: forgotEmail.trim().toLowerCase(),
+                    code: verificationCode.trim(),
+                }
+            );
+
+            setCurrentView('forgot_new_password');
+
+            setLoginFeedback({
+                type: 'success',
+                message:
+                    response.data?.message ||
+                    response.data?.mensagem ||
+                    'Código validado.',
+            });
+        } catch (error) {
+            console.error(
+                'Erro ao verificar código:',
+                error.response?.data || error.message
+            );
+
+            setLoginFeedback({
+                type: 'error',
+                message:
+                    error.response?.data?.message ||
+                    error.response?.data?.mensagem ||
+                    'Código inválido ou expirado.',
+            });
+        } finally {
+            setIsRecovering(false);
+        }
+    };
+
+    // REDEFINIR SENHA
+    const handleResetPassword = async () => {
+        if (!newPassword || !confirmPassword) {
+            setLoginFeedback({
+                type: 'error',
+                message: 'Preencha os dois campos de senha.',
+            });
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setLoginFeedback({
+                type: 'error',
+                message: 'As senhas não coincidem.',
+            });
+            return;
+        }
+
+        const senhaForte =
+            /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%&*_-]).{8,}$/;
+
+        if (!senhaForte.test(newPassword)) {
+            setLoginFeedback({
+                type: 'error',
+                message:
+                    'A senha deve ter no mínimo 8 caracteres, ' +
+                    'letras maiúscula e minúscula, número e ' +
+                    'caractere especial (!@#$%&*_-).',
+            });
+            return;
+        }
+
+        try {
+            setIsRecovering(true);
+            setLoginFeedback(null);
+
+            const response = await api.post(
+                '/auth/password-recovery/reset',
+                {
+                    email: forgotEmail.trim().toLowerCase(),
+                    code: verificationCode.trim(),
+                    newPassword,
+                    confirmPassword,
+                }
+            );
+
+            setLoginFeedback({
+                type: 'success',
+                message:
+                    response.data?.message ||
+                    response.data?.mensagem ||
+                    'Senha redefinida com sucesso. Entre com a nova senha.',
+            });
+
+            setPassword('');
+            setEmail(forgotEmail.trim().toLowerCase());
+            setForgotEmail('');
+            setVerificationCode('');
+            setNewPassword('');
+            setConfirmPassword('');
+            setCurrentView('login');
+        } catch (error) {
+            console.error(
+                'Erro ao redefinir senha:',
+                error.response?.data || error.message
+            );
+
+            setLoginFeedback({
+                type: 'error',
+                message:
+                    error.response?.data?.message ||
+                    error.response?.data?.mensagem ||
+                    'Não foi possível redefinir a senha. Verifique o código e tente novamente.',
+            });
+        } finally {
+            setIsRecovering(false);
+        }
+    };
+
+    const openForgotPassword = () => {
+        setForgotEmail(email.trim());
+        setVerificationCode('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setLoginFeedback(null);
+        setCurrentView('forgot_email');
+    };
+
+    const backToLogin = () => {
+        setCurrentView('login');
+        setLoginFeedback(null);
+    };
+        const renderLogin = () => (
         <>
-            <Text style={[styles.welcomeTitle, { color: colors.text }]}>Bem-vinda de volta</Text>
-            <Text style={[styles.welcomeSubtitle, { color: colors.muted }]}>Entre com sua conta para continuar</Text>
+            <Text style={[styles.welcomeTitle, { color: colors.text }]}>
+                Bem-vinda de volta
+            </Text>
+
+            <Text
+                style={[
+                    styles.welcomeSubtitle,
+                    { color: colors.muted },
+                ]}
+            >
+                Entre com sua conta para continuar
+            </Text>
 
             <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.text }]}>E-mail <Text style={styles.required}>*</Text></Text>
-                <View style={[styles.inputContainer, { backgroundColor: colors.input, borderColor: colors.border }]}>
-                    <MaterialCommunityIcons name="email-outline" size={19} color="#8B8B93" style={styles.iconLeft} />
+                <Text style={[styles.label, { color: colors.text }]}>
+                    E-mail <Text style={styles.required}>*</Text>
+                </Text>
+
+                <View
+                    style={[
+                        styles.inputContainer,
+                        {
+                            backgroundColor: colors.input,
+                            borderColor: colors.border,
+                        },
+                    ]}
+                >
+                    <MaterialCommunityIcons
+                        name="email-outline"
+                        size={19}
+                        color="#8B8B93"
+                        style={styles.iconLeft}
+                    />
+
                     <TextInput
                         value={email}
                         onChangeText={setEmail}
@@ -108,9 +364,26 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.text }]}>Senha <Text style={styles.required}>*</Text></Text>
-                <View style={[styles.inputContainer, { backgroundColor: colors.input, borderColor: colors.border }]}>
-                    <MaterialCommunityIcons name="lock-outline" size={19} color="#8B8B93" style={styles.iconLeft} />
+                <Text style={[styles.label, { color: colors.text }]}>
+                    Senha <Text style={styles.required}>*</Text>
+                </Text>
+
+                <View
+                    style={[
+                        styles.inputContainer,
+                        {
+                            backgroundColor: colors.input,
+                            borderColor: colors.border,
+                        },
+                    ]}
+                >
+                    <MaterialCommunityIcons
+                        name="lock-outline"
+                        size={19}
+                        color="#8B8B93"
+                        style={styles.iconLeft}
+                    />
+
                     <TextInput
                         value={password}
                         onChangeText={setPassword}
@@ -119,19 +392,46 @@ export default function LoginScreen() {
                         secureTextEntry={!showPassword}
                         style={[styles.input, { color: colors.text }]}
                     />
-                    <Pressable onPress={() => setShowPassword((prev) => !prev)} style={styles.iconRight}>
-                        <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#8B8B93" />
+
+                    <Pressable
+                        onPress={() =>
+                            setShowPassword((prev) => !prev)
+                        }
+                        style={styles.iconRight}
+                    >
+                        <MaterialCommunityIcons
+                            name={
+                                showPassword
+                                    ? 'eye-off-outline'
+                                    : 'eye-outline'
+                            }
+                            size={19}
+                            color="#8B8B93"
+                        />
                     </Pressable>
                 </View>
             </View>
 
-            <Pressable style={styles.forgotWrap} onPress={() => setCurrentView('forgot_email')}>
-                <Text style={styles.forgotPassword}>Esqueci minha senha</Text>
+            <Pressable
+                style={styles.forgotWrap}
+                onPress={openForgotPassword}
+            >
+                <Text style={styles.forgotPassword}>
+                    Esqueci minha senha
+                </Text>
             </Pressable>
 
-            {/* Botão de login atualizado com a validação do Admin */}
-            <Pressable style={[styles.btnPrimary, isLoggingIn && styles.disabledBtn]} onPress={handleLogin} disabled={isLoggingIn}>
-                <Text style={styles.btnText}>{isLoggingIn ? 'Entrando...' : 'Entrar'}</Text>
+            <Pressable
+                style={[
+                    styles.btnPrimary,
+                    isLoggingIn && styles.disabledBtn,
+                ]}
+                onPress={handleLogin}
+                disabled={isLoggingIn}
+            >
+                <Text style={styles.btnText}>
+                    {isLoggingIn ? 'Entrando...' : 'Entrar'}
+                </Text>
             </Pressable>
 
             <View style={styles.divider}>
@@ -144,7 +444,12 @@ export default function LoginScreen() {
                 onPress={() => navigation.navigate('Register')}
                 style={{ marginTop: 20 }}
             >
-                <Text style={{ textAlign: 'center', color: '#D6395B' }}>
+                <Text
+                    style={{
+                        textAlign: 'center',
+                        color: '#D6395B',
+                    }}
+                >
                     Não tem uma conta? Cadastre-se
                 </Text>
             </Pressable>
@@ -153,21 +458,36 @@ export default function LoginScreen() {
 
     const renderForgotEmail = () => (
         <>
-            <Pressable style={styles.backButton} onPress={() => setCurrentView('login')}>
-                <Text style={styles.backButtonText}>{'< Voltar ao login'}</Text>
+            <Pressable
+                style={styles.backButton}
+                onPress={backToLogin}
+            >
+                <Text style={styles.backButtonText}>
+                    {'< Voltar ao login'}
+                </Text>
             </Pressable>
 
-            <View style={[styles.stepIconBox, { borderColor: '#A62B4F' }]}>
+            <View
+                style={[
+                    styles.stepIconBox,
+                    { borderColor: '#A62B4F' },
+                ]}
+            >
                 <Text style={styles.stepIconText}>🔒</Text>
             </View>
 
-            <Text style={styles.stepTitle}>Esqueci minha senha</Text>
+            <Text style={styles.stepTitle}>
+                Esqueci minha senha
+            </Text>
+
             <Text style={styles.stepSubtitle}>
-                Informe seu e-mail cadastrado. Enviaremos um código para redefinir sua senha.
+                Informe seu e-mail cadastrado. Enviaremos um código
+                para redefinir sua senha.
             </Text>
 
             <View style={styles.formGroup}>
                 <Text style={styles.stepLabel}>E-MAIL</Text>
+
                 <View style={styles.inputContainer}>
                     <TextInput
                         value={forgotEmail}
@@ -181,30 +501,69 @@ export default function LoginScreen() {
                 </View>
             </View>
 
-            <Pressable style={styles.btnPrimary} onPress={() => setCurrentView('forgot_code')}>
-                <Text style={styles.btnText}>Enviar código</Text>
+            <Pressable
+                style={[
+                    styles.btnPrimary,
+                    isRecovering && styles.disabledBtn,
+                ]}
+                onPress={handleRequestRecoveryCode}
+                disabled={isRecovering}
+            >
+                <Text style={styles.btnText}>
+                    {isRecovering ? 'Enviando...' : 'Enviar código'}
+                </Text>
             </Pressable>
         </>
     );
 
     const renderForgotCode = () => (
         <>
-            <Pressable style={styles.backButton} onPress={() => setCurrentView('forgot_email')}>
-                <Text style={styles.backButtonText}>{'< Voltar'}</Text>
+            <Pressable
+                style={styles.backButton}
+                onPress={() => setCurrentView('forgot_email')}
+            >
+                <Text style={styles.backButtonText}>
+                    {'< Voltar'}
+                </Text>
             </Pressable>
 
-            <View style={[styles.stepIconBox, { borderColor: '#2E7D32' }]}>
-                <Text style={[styles.stepIconText, { color: '#4CAF50' }]}>✉</Text>
+            <View
+                style={[
+                    styles.stepIconBox,
+                    { borderColor: '#2E7D32' },
+                ]}
+            >
+                <Text
+                    style={[
+                        styles.stepIconText,
+                        { color: '#4CAF50' },
+                    ]}
+                >
+                    ✉
+                </Text>
             </View>
 
-            <Text style={styles.stepTitle}>Verifique seu e-mail</Text>
+            <Text style={styles.stepTitle}>
+                Verifique seu e-mail
+            </Text>
+
             <Text style={styles.stepSubtitle}>
-                Enviamos um código de 6 dígitos para{'\n'}
-                <Text style={{ fontWeight: 'bold', color: '#EAEAEA' }}>{forgotEmail || 'seu@email.com'}</Text>
+                Enviamos um código de 6 dígitos para{' \n'}
+                <Text
+                    style={{
+                        fontWeight: 'bold',
+                        color: '#EAEAEA',
+                    }}
+                >
+                    {forgotEmail || 'seu@email.com'}
+                </Text>
             </Text>
 
             <View style={styles.formGroup}>
-                <Text style={styles.stepLabel}>CÓDIGO DE VERIFICAÇÃO</Text>
+                <Text style={styles.stepLabel}>
+                    CÓDIGO DE VERIFICAÇÃO
+                </Text>
+
                 <View style={styles.inputContainer}>
                     <TextInput
                         value={verificationCode}
@@ -213,18 +572,39 @@ export default function LoginScreen() {
                         placeholderTextColor="#555"
                         keyboardType="number-pad"
                         maxLength={6}
-                        style={[styles.inputNoIcon, styles.inputCentered]}
+                        style={[
+                            styles.inputNoIcon,
+                            styles.inputCentered,
+                        ]}
                     />
                 </View>
             </View>
 
-            <Pressable style={styles.btnPrimary} onPress={() => setCurrentView('forgot_new_password')}>
-                <Text style={styles.btnText}>Verificar código</Text>
+            <Pressable
+                style={[
+                    styles.btnPrimary,
+                    isRecovering && styles.disabledBtn,
+                ]}
+                onPress={handleVerifyRecoveryCode}
+                disabled={isRecovering}
+            >
+                <Text style={styles.btnText}>
+                    {isRecovering
+                        ? 'Verificando...'
+                        : 'Verificar código'}
+                </Text>
             </Pressable>
 
-            <Pressable style={styles.resendWrap}>
+            <Pressable
+                style={styles.resendWrap}
+                onPress={handleRequestRecoveryCode}
+                disabled={isRecovering}
+            >
                 <Text style={styles.resendText}>
-                    Não recebeu? <Text style={styles.resendLink}>Reenviar</Text>
+                    Não recebeu?{' '}
+                    <Text style={styles.resendLink}>
+                        {isRecovering ? 'Enviando...' : 'Reenviar'}
+                    </Text>
                 </Text>
             </Pressable>
         </>
@@ -232,19 +612,33 @@ export default function LoginScreen() {
 
     const renderForgotNewPassword = () => (
         <>
-            <Pressable style={styles.backButton} onPress={() => setCurrentView('forgot_code')}>
-                <Text style={styles.backButtonText}>{'< Voltar'}</Text>
+            <Pressable
+                style={styles.backButton}
+                onPress={() => setCurrentView('forgot_code')}
+            >
+                <Text style={styles.backButtonText}>
+                    {'< Voltar'}
+                </Text>
             </Pressable>
 
-            <View style={[styles.stepIconBox, { borderColor: '#A62B4F' }]}>
+            <View
+                style={[
+                    styles.stepIconBox,
+                    { borderColor: '#A62B4F' },
+                ]}
+            >
                 <Text style={styles.stepIconText}>🔒</Text>
             </View>
 
             <Text style={styles.stepTitle}>Nova senha</Text>
-            <Text style={styles.stepSubtitle}>Crie uma nova senha segura para sua conta.</Text>
+
+            <Text style={styles.stepSubtitle}>
+                Crie uma nova senha segura para sua conta.
+            </Text>
 
             <View style={styles.formGroup}>
                 <Text style={styles.stepLabel}>NOVA SENHA</Text>
+
                 <View style={styles.inputContainer}>
                     <TextInput
                         value={newPassword}
@@ -254,14 +648,31 @@ export default function LoginScreen() {
                         secureTextEntry={!showNewPassword}
                         style={styles.inputNoIcon}
                     />
-                    <Pressable onPress={() => setShowNewPassword((prev) => !prev)} style={styles.iconRight}>
-                        <MaterialCommunityIcons name={showNewPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#8B8B93" />
+
+                    <Pressable
+                        onPress={() =>
+                            setShowNewPassword((prev) => !prev)
+                        }
+                        style={styles.iconRight}
+                    >
+                        <MaterialCommunityIcons
+                            name={
+                                showNewPassword
+                                    ? 'eye-off-outline'
+                                    : 'eye-outline'
+                            }
+                            size={19}
+                            color="#8B8B93"
+                        />
                     </Pressable>
                 </View>
             </View>
 
             <View style={styles.formGroup}>
-                <Text style={styles.stepLabel}>CONFIRMAR SENHA</Text>
+                <Text style={styles.stepLabel}>
+                    CONFIRMAR SENHA
+                </Text>
+
                 <View style={styles.inputContainer}>
                     <TextInput
                         value={confirmPassword}
@@ -271,8 +682,22 @@ export default function LoginScreen() {
                         secureTextEntry={!showConfirmPassword}
                         style={styles.inputNoIcon}
                     />
-                    <Pressable onPress={() => setShowConfirmPassword((prev) => !prev)} style={styles.iconRight}>
-                        <MaterialCommunityIcons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#8B8B93" />
+
+                    <Pressable
+                        onPress={() =>
+                            setShowConfirmPassword((prev) => !prev)
+                        }
+                        style={styles.iconRight}
+                    >
+                        <MaterialCommunityIcons
+                            name={
+                                showConfirmPassword
+                                    ? 'eye-off-outline'
+                                    : 'eye-outline'
+                            }
+                            size={19}
+                            color="#8B8B93"
+                        />
                     </Pressable>
                 </View>
             </View>
@@ -285,24 +710,46 @@ export default function LoginScreen() {
                     '1 número',
                     '1 caractere especial (!@#$%&*_-)',
                 ].map((item, index) => (
-                    <View key={index} style={styles.checklistItem}>
+                    <View
+                        key={index}
+                        style={styles.checklistItem}
+                    >
                         <View style={styles.checklistDot} />
-                        <Text style={styles.checklistText}>{item}</Text>
+                        <Text style={styles.checklistText}>
+                            {item}
+                        </Text>
                     </View>
                 ))}
             </View>
 
-            <Pressable style={[styles.btnPrimary, { marginTop: 16 }]} onPress={() => setCurrentView('login')}>
-                <Text style={styles.btnText}>Redefinir senha</Text>
+            <Pressable
+                style={[
+                    styles.btnPrimary,
+                    { marginTop: 16 },
+                    isRecovering && styles.disabledBtn,
+                ]}
+                onPress={handleResetPassword}
+                disabled={isRecovering}
+            >
+                <Text style={styles.btnText}>
+                    {isRecovering
+                        ? 'Redefinindo...'
+                        : 'Redefinir senha'}
+                </Text>
             </Pressable>
         </>
     );
-
-    return (
+        return (
         <MobileFrame backgroundColor="#0B0B0C">
-            <FeedbackBanner feedback={loginFeedback} onClose={() => setLoginFeedback(null)} />
+            <FeedbackBanner
+                feedback={loginFeedback}
+                onClose={() => setLoginFeedback(null)}
+            />
+
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                behavior={
+                    Platform.OS === 'ios' ? 'padding' : undefined
+                }
                 style={styles.keyboardView}
             >
                 <ScrollView
@@ -313,29 +760,59 @@ export default function LoginScreen() {
                 >
                     <View style={styles.appContainer}>
                         <View style={styles.topSection}>
-                            <View style={[styles.blob, styles.blob1]} />
-                            <View style={[styles.blob, styles.blob2]} />
-                            <LinearGradient
-                                colors={['transparent', colors.background]}
-                                locations={[0.15, 1]}
-                                style={styles.sectionFade}
-                                pointerEvents="none"
+                            <View
+                                style={[styles.blob, styles.blob1]}
                             />
+                            <View
+                                style={[styles.blob, styles.blob2]}
+                            />
+
+                            <LinearGradient
+    colors={[
+        'transparent',
+        colors.background,
+    ]}
+    locations={[0.15, 1]}
+    style={[
+        styles.sectionFade,
+        { pointerEvents: 'none' },
+    ]}
+/>
 
                             <View style={styles.logoContainer}>
                                 <View style={styles.logoBox}>
-                                    <Image source={logoGuardia} style={styles.customLogo} resizeMode="contain" />
+                                    <Image
+                                        source={logoGuardia}
+                                        style={styles.customLogo}
+                                        resizeMode="contain"
+                                    />
                                 </View>
-                                <Text style={styles.brandTitle}>Guardiã</Text>
-                                <Text style={styles.brandSubtitle}>Sua segurança, sempre com você</Text>
+
+                                <Text style={styles.brandTitle}>
+                                    Guardiã
+                                </Text>
+
+                                <Text style={styles.brandSubtitle}>
+                                    Sua segurança, sempre com você
+                                </Text>
                             </View>
                         </View>
 
-                        <View style={[styles.bottomSection, { backgroundColor: colors.background }]}>
+                        <View
+                            style={[
+                                styles.bottomSection,
+                                {
+                                    backgroundColor: colors.background,
+                                },
+                            ]}
+                        >
                             {currentView === 'login' && renderLogin()}
-                            {currentView === 'forgot_email' && renderForgotEmail()}
-                            {currentView === 'forgot_code' && renderForgotCode()}
-                            {currentView === 'forgot_new_password' && renderForgotNewPassword()}
+                            {currentView === 'forgot_email' &&
+                                renderForgotEmail()}
+                            {currentView === 'forgot_code' &&
+                                renderForgotCode()}
+                            {currentView === 'forgot_new_password' &&
+                                renderForgotNewPassword()}
                         </View>
                     </View>
                 </ScrollView>
@@ -471,7 +948,7 @@ const styles = StyleSheet.create({
     },
     eyeText: {
         fontSize: 14,
-        color: '#7C7C82'
+        color: '#7C7C82',
     },
     input: {
         height: 52,
