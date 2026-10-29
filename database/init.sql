@@ -99,6 +99,7 @@ CREATE TABLE tokens_recuperacao (
     tipo VARCHAR(50) NOT NULL,
     utilizado BOOLEAN NOT NULL DEFAULT FALSE,
     data_expiracao TIMESTAMP WITH TIME ZONE NOT NULL
+    tentativas INTEGER NOT NULL DEFAULT 0
 );
 
 -- ============================================================================

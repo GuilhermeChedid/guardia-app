@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 
+
 const {
     register,
     login,
@@ -22,6 +23,14 @@ const {
     getEvidenceHistory,
     updateProfilePhoto,
     deleteProfilePhoto,
+    solicitarRecuperacaoSenha,
+    verificarCodigoRecuperacao,
+    redefinirSenha,
+    solicitarRecuperacaoPin,
+    verificarCodigoRecuperacaoPin,
+    redefinirPin,
+    alterarSenha,
+    alterarPin,
 } = require('../controllers/authController');
 
 const profileUploadDirectory = path.resolve(__dirname, '../../uploads/profile');
@@ -80,5 +89,13 @@ router.post('/evidences/:usuarioId', createEvidence);
 router.put('/evidences/:usuarioId/:evidenceId', updateEvidence);
 router.delete('/evidences/:usuarioId/:evidenceId', deleteEvidence);
 router.get('/evidences/:usuarioId/history', getEvidenceHistory);
+router.post('/password-recovery/request', solicitarRecuperacaoSenha);
+router.post('/password-recovery/verify', verificarCodigoRecuperacao);
+router.post('/password-recovery/reset', redefinirSenha);
+router.post('/pin-recovery/request', solicitarRecuperacaoPin);
+router.post('/pin-recovery/verify', verificarCodigoRecuperacaoPin);
+router.post('/pin-recovery/reset', redefinirPin);
+router.put('/password', alterarSenha);
+router.put('/pin', alterarPin);
 
 module.exports = router;

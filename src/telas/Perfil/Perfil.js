@@ -70,6 +70,12 @@ export default function PerfilScreen() {
     const [recoveryEmail, setRecoveryEmail] = useState(profile.email);
     const [verificationCode, setVerificationCode] = useState('');
 
+    // Personalização do disfarce do aplicativo e do widget SOS
+    const [selectedDisguise, setSelectedDisguise] = useState('shield-check');
+    const [widgetName, setWidgetName] = useState('Família');
+    const [widgetPhoto, setWidgetPhoto] = useState(null);
+    const [isSavingCustomization, setIsSavingCustomization] = useState(false);
+
     // PIN states
     const [currentPin, setCurrentPin] = useState('');
     const [newPin, setNewPin] = useState('');
@@ -91,11 +97,355 @@ export default function PerfilScreen() {
         setRecoveryEmail(profile.email);
     }, [profile]);
 
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadCustomization = async () => {
+            try {
+                const saved = await AsyncStorage.getItem('@guardia/settings_customization');
+                if (!saved || !isMounted) return;
+
+                const customization = JSON.parse(saved);
+                if (customization.disguise) setSelectedDisguise(customization.disguise);
+                if (customization.widgetName) setWidgetName(customization.widgetName);
+                if (customization.widgetPhoto) setWidgetPhoto(customization.widgetPhoto);
+            } catch (error) {
+                console.error('Erro ao carregar personalização:', error);
+            }
+        };
+
+        loadCustomization();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
     useFocusEffect(
         React.useCallback(() => {
             refreshProfile();
         }, [refreshProfile])
     );
+
+    const handlePickWidgetPhoto = async () => {
+        try {
+            const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permission.granted) {
+                setFeedback({
+                    type: 'error',
+                    message: 'Permita o acesso às fotos para escolher a imagem do widget SOS.',
+                });
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.85,
+            });
+
+            if (result.canceled || !result.assets?.[0]?.uri) return;
+            setWidgetPhoto(result.assets[0].uri);
+        } catch (error) {
+            console.error('Erro ao escolher foto do widget:', error);
+            setFeedback({ type: 'error', message: 'Não foi possível selecionar essa foto.' });
+        }
+    };
+
+    const handleSaveCustomization = async () => {
+        try {
+            setIsSavingCustomization(true);
+            await AsyncStorage.setItem(
+                '@guardia/settings_customization',
+                JSON.stringify({
+                    disguise: selectedDisguise,
+                    widgetName,
+                    widgetPhoto,
+                }),
+            );
+            setFeedback({
+                type: 'success',
+                message: 'Personalização salva neste dispositivo.',
+            });
+        } catch (error) {
+            console.error('Erro ao salvar personalização:', error);
+            setFeedback({
+                type: 'error',
+                message: 'Não foi possível salvar a personalização.',
+            });
+        } finally {
+            setIsSavingCustomization(false);
+        }
+    };
+
+const solicitarCodigoSenha = async () => {
+    try {
+        const response = await api.post('/auth/password-recovery/request', {
+            email: recoveryEmail.trim().toLowerCase(),
+        });
+
+        setVerificationCode('');
+        setPasswordStep('verify');
+        setFeedback({
+            type: 'success',
+            message: response.data.message || 'Solicitação processada. Confira seu e-mail.',
+        });
+    } catch (error) {
+        setFeedback({
+            type: 'error',
+            message: error.response?.data?.message || 'Não foi possível solicitar o código.',
+        });
+    }
+};
+
+const verificarCodigoSenha = async () => {
+    try {
+        const response = await api.post('/auth/password-recovery/verify', {
+            email: recoveryEmail.trim().toLowerCase(),
+            code: verificationCode.trim(),
+        });
+
+        setPasswordStep('new');
+        setFeedback({
+            type: 'success',
+            message: response.data.message || 'Código validado.',
+        });
+    } catch (error) {
+        setFeedback({
+            type: 'error',
+            message: error.response?.data?.message || 'Não foi possível validar o código.',
+        });
+    }
+};
+
+
+const redefinirSenhaRecuperada = async () => {
+    if (!newPassword || !confirmPassword) {
+        setFeedback({
+            type: 'error',
+            message: 'Preencha os campos da nova senha.',
+        });
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        setFeedback({
+            type: 'error',
+            message: 'A nova senha e a confirmação não coincidem.',
+        });
+        return;
+    }
+
+    try {
+        const response = await api.post('/auth/password-recovery/reset', {
+            email: recoveryEmail.trim().toLowerCase(),
+            code: verificationCode.trim(),
+            newPassword,
+            confirmPassword,
+        });
+
+        setFeedback({
+            type: 'success',
+            message: response.data.message || 'Senha redefinida com sucesso.',
+        });
+
+        resetPasswordFlow();
+    } catch (error) {
+        setFeedback({
+            type: 'error',
+            message:
+                error.response?.data?.message ||
+                'Não foi possível redefinir a senha.',
+        });
+    }
+};
+
+
+const salvarSenhaAtual = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+        setFeedback({
+            type: 'error',
+            message: 'Preencha todos os campos de senha.',
+        });
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        setFeedback({
+            type: 'error',
+            message: 'A nova senha e a confirmação não coincidem.',
+        });
+        return;
+    }
+
+    try {
+        const storedUser = await AsyncStorage.getItem('@guardia/auth_user');
+        const usuario = storedUser ? JSON.parse(storedUser) : null;
+
+        if (!usuario?.id) {
+            setFeedback({
+                type: 'error',
+                message: 'Sessão expirada. Faça login novamente.',
+            });
+            return;
+        }
+
+        const response = await api.put('/auth/password', {
+            usuarioId: usuario.id,
+            currentPassword,
+            newPassword,
+            confirmPassword,
+        });
+
+        setFeedback({
+            type: 'success',
+            message: response.data.message || 'Senha alterada com sucesso.',
+        });
+
+        resetPasswordFlow();
+    } catch (error) {
+        console.error(
+            'Erro ao alterar senha:',
+            error.response?.data || error.message
+        );
+
+        setFeedback({
+            type: 'error',
+            message:
+                error.response?.data?.message ||
+                error.response?.data?.erro ||
+                'Não foi possível alterar a senha.',
+        });
+    }
+};
+
+
+const salvarPinAtual = async () => {
+    if (!currentPin || !newPin || !confirmPin) {
+        setFeedback({
+            type: 'error',
+            message: 'Preencha todos os campos de PIN.',
+        });
+        return;
+    }
+
+    if (!/^\d{4}$/.test(currentPin) || !/^\d{4}$/.test(newPin)) {
+        setFeedback({
+            type: 'error',
+            message: 'O PIN deve conter exatamente 4 dígitos.',
+        });
+        return;
+    }
+
+    if (newPin !== confirmPin) {
+        setFeedback({
+            type: 'error',
+            message: 'O novo PIN e a confirmação não coincidem.',
+        });
+        return;
+    }
+
+    try {
+        const storedUser = await AsyncStorage.getItem('@guardia/auth_user');
+        const usuario = storedUser ? JSON.parse(storedUser) : null;
+
+        if (!usuario?.id) {
+            setFeedback({
+                type: 'error',
+                message: 'Sessão expirada. Faça login novamente.',
+            });
+            return;
+        }
+
+        const response = await api.put('/auth/pin', {
+            usuarioId: usuario.id,
+            currentPin,
+            newPin,
+            confirmPin,
+        });
+
+        setFeedback({
+            type: 'success',
+            message: response.data.message || 'PIN alterado com sucesso.',
+        });
+
+        resetPinFlow();
+    } catch (error) {
+        console.error(
+            'Erro ao alterar PIN:',
+            error.response?.data || error.message
+        );
+
+        setFeedback({
+            type: 'error',
+            message:
+                error.response?.data?.message ||
+                'Não foi possível alterar o PIN.',
+        });
+    }
+};
+
+const solicitarCodigoPin = async () => {
+    try {
+        const response = await api.post('/auth/pin-recovery/request', {
+            email: recoveryEmail.trim().toLowerCase(),
+        });
+
+        setVerificationCode('');
+        setPinStep('verify');
+        setFeedback({
+            type: 'success',
+            message: response.data.message || 'Solicitação processada. Confira seu e-mail.',
+        });
+    } catch (error) {
+        setFeedback({
+            type: 'error',
+            message: error.response?.data?.message || 'Não foi possível solicitar o código.',
+        });
+    }
+};
+
+const verificarCodigoPin = async () => {
+    try {
+        const response = await api.post('/auth/pin-recovery/verify', {
+            email: recoveryEmail.trim().toLowerCase(),
+            code: verificationCode.trim(),
+        });
+
+        setPinStep('new');
+        setFeedback({
+            type: 'success',
+            message: response.data.message || 'Código validado.',
+        });
+    } catch (error) {
+        setFeedback({
+            type: 'error',
+            message: error.response?.data?.message || 'Não foi possível validar o código.',
+        });
+    }
+};
+
+const redefinirPinRecuperado = async () => {
+    try {
+        const response = await api.post('/auth/pin-recovery/reset', {
+            email: recoveryEmail.trim().toLowerCase(),
+            code: verificationCode.trim(),
+            newPin,
+            confirmPin,
+        });
+
+        setFeedback({
+            type: 'success',
+            message: response.data.message || 'PIN redefinido com sucesso.',
+        });
+        resetPinFlow();
+    } catch (error) {
+        setFeedback({
+            type: 'error',
+            message: error.response?.data?.message || 'Não foi possível redefinir o PIN.',
+        });
+    }
+};
 
     const resetPasswordFlow = () => {
         setSecuritySection(null);
@@ -520,6 +870,138 @@ export default function PerfilScreen() {
                                 </View>
                             </View>
 
+                            {/* Disfarce do aplicativo */}
+                            <Text style={styles.sectionHeader}>DISFARCE DO APLICATIVO</Text>
+                            <View style={[styles.settingsCard, styles.disguiseCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                <View style={styles.disguiseHeading}>
+                                    <View style={[styles.settingIconBox, { backgroundColor: colors.surfaceStrong }]}>
+                                        <MaterialCommunityIcons name="shield-outline" size={20} color="#FF3366" />
+                                    </View>
+                                    <View style={styles.settingTextWrap}>
+                                        <Text style={[styles.settingTitle, { color: colors.text }]}>Disfarce do aplicativo</Text>
+                                        <Text style={[styles.settingSubtitle, { color: colors.muted }]}>
+                                            Escolha um ícone discreto para a tela inicial
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.disguiseOptions}>
+                                    {[
+                                        { id: 'shield-check', label: 'Guardiã', icon: 'shield-check', color: '#C83C59' },
+                                        { id: 'calculator', label: 'Calculadora', icon: 'calculator-variant', color: '#8B8BA7' },
+                                        { id: 'book-open-page-variant', label: 'Guia', icon: 'book-open-page-variant', color: '#3979E5' },
+                                        { id: 'folder-heart', label: 'Arquivos', icon: 'folder-heart', color: '#3979E5' },
+                                    ].map((option) => {
+                                        const selected = selectedDisguise === option.id;
+                                        return (
+                                            <Pressable
+                                                key={option.id}
+                                                accessibilityRole="button"
+                                                accessibilityState={{ selected }}
+                                                onPress={() => setSelectedDisguise(option.id)}
+                                                style={[
+                                                    styles.disguiseOption,
+                                                    { backgroundColor: colors.surfaceStrong, borderColor: colors.border },
+                                                    selected && styles.disguiseOptionSelected,
+                                                ]}
+                                            >
+                                                <View style={[
+                                                    styles.disguiseIconPreview,
+                                                    { backgroundColor: option.color },
+                                                    selected && option.id !== 'shield-check' && styles.disguiseIconSelected,
+                                                ]}>
+                                                    <MaterialCommunityIcons name={option.icon} size={25} color="#FFFFFF" />
+                                                </View>
+                                                <Text
+                                                    numberOfLines={1}
+                                                    style={[
+                                                        styles.disguiseOptionLabel,
+                                                        { color: selected ? colors.text : colors.muted },
+                                                    ]}
+                                                >
+                                                    {option.label}
+                                                </Text>
+                                            </Pressable>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+                            <Text style={styles.settingsHint}>
+                                A escolha fica salva neste dispositivo. A troca real do ícone na tela inicial depende da configuração nativa do aplicativo.
+                            </Text>
+
+                            {/* Widget SOS */}
+                            <Text style={styles.sectionHeader}>WIDGET SOS</Text>
+                            <View style={[styles.settingsCard, styles.widgetCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                <Text style={styles.widgetPreviewLabel}>PRÉVIA</Text>
+                                <View style={styles.widgetPreviewRow}>
+                                    <View style={styles.widgetPreviewTile}>
+                                        {widgetPhoto ? (
+                                            <Image source={{ uri: widgetPhoto }} style={styles.widgetPreviewImage} />
+                                        ) : (
+                                            <MaterialCommunityIcons name="image-outline" size={28} color={colors.muted} />
+                                        )}
+                                        <View style={styles.widgetNameOverlay}>
+                                            <Text style={styles.widgetNameOverlayText} numberOfLines={1}>{widgetName}</Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.widgetPreviewDescription}>
+                                        <Text style={[styles.settingTitle, { color: colors.text }]}>SOS camuflado</Text>
+                                        <Text style={[styles.widgetDescriptionText, { color: colors.muted }]}>
+                                            O widget parece um atalho comum. Pressione o widget para iniciar o SOS.
+                                        </Text>
+                                        <Pressable
+                                            style={[styles.choosePhotoButton, { backgroundColor: colors.surfaceStrong, borderColor: colors.border }]}
+                                            onPress={handlePickWidgetPhoto}
+                                        >
+                                            <MaterialCommunityIcons name="upload-outline" size={16} color={colors.text} />
+                                            <Text style={[styles.choosePhotoText, { color: colors.text }]}>Escolher foto</Text>
+                                        </Pressable>
+                                    </View>
+                                </View>
+
+                                <Text style={styles.widgetPreviewLabel}>NOME EXIBIDO</Text>
+                                <View style={styles.widgetNamesRow}>
+                                    {['Família', 'Fotos', 'Agenda', 'Favoritos'].map((label) => {
+                                        const selected = widgetName === label;
+                                        return (
+                                            <Pressable
+                                                key={label}
+                                                onPress={() => setWidgetName(label)}
+                                                style={[
+                                                    styles.widgetNameOption,
+                                                    { backgroundColor: colors.surfaceStrong, borderColor: colors.border },
+                                                    selected && styles.widgetNameOptionSelected,
+                                                ]}
+                                            >
+                                                <Text
+                                                    numberOfLines={1}
+                                                    style={[
+                                                        styles.widgetNameOptionText,
+                                                        { color: selected ? colors.text : colors.muted },
+                                                    ]}
+                                                >
+                                                    {label}
+                                                </Text>
+                                            </Pressable>
+                                        );
+                                    })}
+                                </View>
+
+                                <Pressable
+                                    style={[styles.primaryButton, isSavingCustomization && styles.buttonDisabled]}
+                                    onPress={handleSaveCustomization}
+                                    disabled={isSavingCustomization}
+                                >
+                                    <Text style={styles.primaryButtonText}>
+                                        {isSavingCustomization ? 'Salvando...' : 'Salvar personalização'}
+                                    </Text>
+                                </Pressable>
+                            </View>
+                            <Text style={styles.settingsHint}>
+                                Para adicionar o widget à tela inicial, mantenha pressionado um espaço vazio e procure por Guardiã nos widgets. A integração do widget precisa estar implementada no aplicativo.
+                            </Text>
+
                             {/* Segurança */}
                             <Text style={styles.sectionHeader}>SEGURANÇA</Text>
                             <View style={[styles.settingsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -580,7 +1062,7 @@ export default function PerfilScreen() {
                                                 />
                                                 <Pressable
                                                     style={styles.primaryButton}
-                                                    onPress={resetPasswordFlow}
+                                                    onPress={salvarSenhaAtual}
                                                 >
                                                     <Text style={styles.primaryButtonText}>Salvar nova senha</Text>
                                                 </Pressable>
@@ -608,7 +1090,7 @@ export default function PerfilScreen() {
                                                 />
                                                 <Pressable
                                                     style={styles.primaryButton}
-                                                    onPress={() => setPasswordStep('verify')}
+                                                    onPress={solicitarCodigoSenha}
                                                 >
                                                     <Text style={styles.primaryButtonText}>Enviar código</Text>
                                                 </Pressable>
@@ -643,7 +1125,7 @@ export default function PerfilScreen() {
 
                                                 <Pressable
                                                     style={styles.primaryButton}
-                                                    onPress={() => setPasswordStep('new')}
+                                                    onPress={verificarCodigoSenha}
                                                 >
                                                     <Text style={styles.primaryButtonText}>Verificar código</Text>
                                                 </Pressable>
@@ -679,7 +1161,7 @@ export default function PerfilScreen() {
                                                 />
                                                 <Pressable
                                                     style={styles.primaryButton}
-                                                    onPress={resetPasswordFlow}
+                                                    onPress={redefinirSenhaRecuperada}
                                                 >
                                                     <Text style={styles.primaryButtonText}>Redefinir senha</Text>
                                                 </Pressable>
@@ -753,7 +1235,7 @@ export default function PerfilScreen() {
                                                 />
                                                 <Pressable
                                                     style={styles.primaryButton}
-                                                    onPress={resetPinFlow}
+                                                    onPress={salvarPinAtual}
                                                 >
                                                     <Text style={styles.primaryButtonText}>Salvar novo PIN</Text>
                                                 </Pressable>
@@ -781,7 +1263,7 @@ export default function PerfilScreen() {
                                                 />
                                                 <Pressable
                                                     style={styles.primaryButton}
-                                                    onPress={() => setPinStep('verify')}
+                                                    onPress={solicitarCodigoPin}
                                                 >
                                                     <Text style={styles.primaryButtonText}>Enviar código</Text>
                                                 </Pressable>
@@ -816,7 +1298,7 @@ export default function PerfilScreen() {
 
                                                 <Pressable
                                                     style={styles.primaryButton}
-                                                    onPress={() => setPinStep('new')}
+                                                    onPress={verificarCodigoPin}
                                                 >
                                                     <Text style={styles.primaryButtonText}>Verificar código</Text>
                                                 </Pressable>
@@ -858,7 +1340,7 @@ export default function PerfilScreen() {
                                                 />
                                                 <Pressable
                                                     style={styles.primaryButton}
-                                                    onPress={resetPinFlow}
+                                                    onPress={redefinirPinRecuperado}
                                                 >
                                                     <Text style={styles.primaryButtonText}>Redefinir PIN</Text>
                                                 </Pressable>
@@ -1482,6 +1964,157 @@ const styles = StyleSheet.create({
         color: '#22C55E',
         fontSize: 13,
         fontWeight: '600',
+    },
+    disguiseCard: {
+        paddingHorizontal: 12,
+        paddingTop: 14,
+        paddingBottom: 14,
+    },
+    disguiseHeading: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    disguiseOptions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 6,
+    },
+    disguiseOption: {
+        flex: 1,
+        minWidth: 0,
+        minHeight: 84,
+        borderRadius: 13,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 3,
+        paddingVertical: 9,
+    },
+    disguiseOptionSelected: {
+        borderColor: '#C83C59',
+        backgroundColor: 'rgba(200,60,89,0.10)',
+    },
+    disguiseIconPreview: {
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 7,
+    },
+    disguiseIconSelected: {
+        borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.55)',
+    },
+    disguiseOptionLabel: {
+        fontSize: 9,
+        fontWeight: '500',
+        textAlign: 'center',
+    },
+    settingsHint: {
+        color: '#71717A',
+        fontSize: 10,
+        lineHeight: 16,
+        marginHorizontal: 4,
+        marginTop: -2,
+        marginBottom: 10,
+    },
+    widgetCard: {
+        padding: 14,
+    },
+    widgetPreviewLabel: {
+        color: '#71717A',
+        fontSize: 10,
+        fontWeight: '700',
+        letterSpacing: 0.4,
+        marginBottom: 10,
+    },
+    widgetPreviewRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 12,
+        marginBottom: 22,
+    },
+    widgetPreviewTile: {
+        width: 112,
+        height: 112,
+        borderRadius: 22,
+        backgroundColor: '#20171D',
+        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    widgetPreviewImage: {
+        width: '100%',
+        height: '100%',
+        position: 'absolute',
+    },
+    widgetNameOverlay: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        minHeight: 34,
+        paddingHorizontal: 8,
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0,0,0,0.72)',
+    },
+    widgetNameOverlayText: {
+        color: '#FFFFFF',
+        fontSize: 11,
+        fontWeight: '600',
+    },
+    widgetPreviewDescription: {
+        flex: 1,
+        minWidth: 0,
+        paddingTop: 2,
+    },
+    widgetDescriptionText: {
+        fontSize: 11,
+        lineHeight: 19,
+        marginTop: 5,
+        marginBottom: 10,
+    },
+    choosePhotoButton: {
+        alignSelf: 'flex-start',
+        minHeight: 34,
+        borderRadius: 10,
+        borderWidth: 1,
+        paddingHorizontal: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    choosePhotoText: {
+        fontSize: 11,
+        fontWeight: '600',
+    },
+    widgetNamesRow: {
+        flexDirection: 'row',
+        gap: 6,
+        marginBottom: 18,
+    },
+    widgetNameOption: {
+        flex: 1,
+        minWidth: 0,
+        minHeight: 34,
+        borderRadius: 12,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 4,
+    },
+    widgetNameOptionSelected: {
+        borderColor: '#C83C59',
+        backgroundColor: 'rgba(200,60,89,0.08)',
+    },
+    widgetNameOptionText: {
+        fontSize: 10,
+        textAlign: 'center',
+    },
+    buttonDisabled: {
+        opacity: 0.65,
     },
     footerVersionSettings: {
         color: '#71717A',
