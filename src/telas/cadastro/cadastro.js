@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { validarCPF } from '../../utils/cpfValidation';
 
 import {
     View,
@@ -127,6 +128,11 @@ export default function CadastroScreen() {
             console.error('Erro ao consultar CEP:', error);
             showFeedback('Não foi possível consultar o CEP. Verifique sua conexão e tente novamente.');
         }
+        
+        if (!validarCPF(cpf)) {
+    showFeedback('CPF inválido. Verifique os números informados.');
+    return;
+}
     };
 
     const handleRegister = async () => {
