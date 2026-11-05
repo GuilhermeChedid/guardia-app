@@ -45,6 +45,38 @@ const validateFullName = (value = '') => {
     return true;
 };
 
+const validarCPF = (cpf) => {
+    const numeros = String(cpf || '').replace(/\D/g, '');
+
+    if (numeros.length !== 11) return false;
+
+    if (/^(\d)\1{10}$/.test(numeros)) return false;
+
+    let soma = 0;
+
+    for (let i = 0; i < 9; i++) {
+        soma += Number(numeros[i]) * (10 - i);
+    }
+
+    let primeiroDigito = (soma * 10) % 11;
+
+    if (primeiroDigito === 10) primeiroDigito = 0;
+
+    if (primeiroDigito !== Number(numeros[9])) return false;
+
+    soma = 0;
+
+    for (let i = 0; i < 10; i++) {
+        soma += Number(numeros[i]) * (11 - i);
+    }
+
+    let segundoDigito = (soma * 10) % 11;
+
+    if (segundoDigito === 10) segundoDigito = 0;
+
+    return segundoDigito === Number(numeros[10]);
+};
+
 const verifyProofPin = async (req, res) => {
     const client = await pool.connect();
 
@@ -312,13 +344,13 @@ const register = async (req, res) => {
         const cpfLimpo = cpf.replace(/\D/g, '');
         const cepLimpo = cep.replace(/\D/g, '');
 
-        // 4. Validar CPF
-        if (cpfLimpo.length !== 11) {
-            return res.status(400).json({
-                success: false,
-                message: 'CPF inválido.',
-            });
-        }
+       // 4. Validar CPF
+    if (!validarCPF(cpfLimpo)) {
+        return res.status(400).json({
+            success: false,
+            message: 'CPF inválido. Verifique os números informados.',
+        });
+}
 
         // 5. Validar CEP
         if (cepLimpo.length !== 8) {
