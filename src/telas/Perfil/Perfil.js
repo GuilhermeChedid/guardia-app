@@ -653,7 +653,7 @@ const redefinirPinRecuperado = async () => {
             <FeedbackBanner feedback={feedback} onClose={() => setFeedback(null)} />
             <View style={[styles.screen, { backgroundColor: colors.background }]}>
                 {screen === 'main' && (
-                    <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.mainContent} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+                    <ScrollView style={[styles.scrollContainer, Platform.OS === 'web' && styles.webScrollContainer]} contentContainerStyle={styles.mainContent} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
                         <View style={styles.avatarSection}>
                             <View style={styles.largeAvatar}>
                                 {profile.photoUrl ? (
@@ -739,7 +739,7 @@ const redefinirPinRecuperado = async () => {
                             <View style={styles.backSpacer} />
                         </View>
 
-                        <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+                        <ScrollView style={[styles.scrollContainer, Platform.OS === 'web' && styles.webScrollContainer]} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
                             <Pressable style={styles.avatarCenterWrap} onPress={handlePickProfilePhoto} disabled={isSavingPhoto}>
                                 <View style={styles.mediumAvatar}>
                                     {profile.photoUrl ? (
@@ -849,7 +849,7 @@ const redefinirPinRecuperado = async () => {
                             <View style={styles.backSpacer} />
                         </View>
 
-                        <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.settingsContent} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+                        <ScrollView style={[styles.scrollContainer, Platform.OS === 'web' && styles.webScrollContainer]} contentContainerStyle={styles.settingsContent} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
                             {/* Aparência */}
                             <Text style={styles.sectionHeader}>APARÊNCIA</Text>
                             <View style={[styles.settingsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -1477,13 +1477,23 @@ const styles = StyleSheet.create({
     screen: {
         width: '100%',
         height: '100%',
+        minHeight: 0,
         backgroundColor: '#0C0D10',
         display: 'flex',
         flexDirection: 'column',
+        overflow: 'hidden',
     },
     scrollContainer: {
         flex: 1,
         width: '100%',
+        minHeight: 0,
+    },
+    // React Native Web precisa de overflow vertical explícito para rolar com a roda do mouse.
+    webScrollContainer: {
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        maxHeight: '100%',
+        overscrollBehaviorY: 'contain',
     },
     mainContent: {
         alignItems: 'center',
