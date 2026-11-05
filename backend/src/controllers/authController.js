@@ -764,7 +764,8 @@ const getContacts = async (req, res) => {
     const client = await pool.connect();
     try {
         const result = await client.query(
-            `SELECT id, nome, relacao, telefone
+            `SELECT id, nome, relacao, telefone,
+                    telegram_chat_id IS NOT NULL AS telegram_vinculado
              FROM contatos_confianca
              WHERE usuario_id = $1
              ORDER BY nome`,
@@ -789,7 +790,7 @@ const createContact = async (req, res) => {
         const result = await client.query(
             `INSERT INTO contatos_confianca (usuario_id, nome, relacao, telefone)
              VALUES ($1, $2, $3, $4)
-             RETURNING id, nome, relacao, telefone`,
+             RETURNING id, nome, relacao, telefone, telegram_chat_id IS NOT NULL AS telegram_vinculado`,
             [req.params.usuarioId, nome.trim(), relacao.trim(), telefone.trim()]
         );
         return res.status(201).json({ success: true, contact: result.rows[0] });
@@ -812,7 +813,7 @@ const updateContact = async (req, res) => {
             `UPDATE contatos_confianca
              SET nome = $1, relacao = $2, telefone = $3
              WHERE id = $4 AND usuario_id = $5
-             RETURNING id, nome, relacao, telefone`,
+             RETURNING id, nome, relacao, telefone, telegram_chat_id IS NOT NULL AS telegram_vinculado`,
             [nome.trim(), relacao.trim(), telefone.trim(), req.params.contactId, req.params.usuarioId]
         );
         if (!result.rows.length) return res.status(404).json({ success: false, message: 'Contato não encontrado.' });

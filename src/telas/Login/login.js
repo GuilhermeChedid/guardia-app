@@ -22,9 +22,43 @@ import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
 
 const logoGuardia = require('../../assets/imagens/logo_guardia.png');
 
+const passwordRules = [
+    { label: 'Mínimo 8 caracteres', test: (password) => password.length >= 8 },
+    { label: '1 letra maiúscula', test: (password) => /[A-Z]/.test(password) },
+    { label: '1 letra minúscula', test: (password) => /[a-z]/.test(password) },
+    { label: '1 número', test: (password) => /\d/.test(password) },
+    { label: '1 caractere especial (!@#$%&*_-)', test: (password) => /[!@#$%&*_-]/.test(password) },
+];
+
 export default function LoginScreen() {
     const navigation = useNavigation();
     const { colors } = useTheme();
+
+    useEffect(() => {
+        if (Platform.OS === 'web' && typeof document !== 'undefined') {
+            const styleId = 'custom-scrollbar-style';
+            if (!document.getElementById(styleId)) {
+                const style = document.createElement('style');
+                style.id = styleId;
+                style.innerHTML = `
+                    ::-webkit-scrollbar {
+                        width: 6px;
+                    }
+                    ::-webkit-scrollbar-track {
+                        background: #0B0B0C;
+                    }
+                    ::-webkit-scrollbar-thumb {
+                        background: #2A2A2E;
+                        border-radius: 3px;
+                    }
+                    ::-webkit-scrollbar-thumb:hover {
+                        background: #3A3A3F;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+    }, []);
 
     const [currentView, setCurrentView] = useState('login');
 
@@ -703,22 +737,12 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.checklistContainer}>
-                {[
-                    'Mínimo 8 caracteres',
-                    '1 letra maiúscula',
-                    '1 letra minúscula',
-                    '1 número',
-                    '1 caractere especial (!@#$%&*_-)',
-                ].map((item, index) => (
-                    <View
-                        key={index}
-                        style={styles.checklistItem}
-                    >
-                        <View style={styles.checklistDot} />
-                        <Text style={styles.checklistText}>
-                            {item}
-                        </Text>
-                    </View>
+                {passwordRules.map((rule) => (
+                    <PasswordRule
+                        key={rule.label}
+                        label={rule.label}
+                        valid={rule.test(newPassword)}
+                    />
                 ))}
             </View>
 
@@ -750,15 +774,17 @@ export default function LoginScreen() {
                 behavior={
                     Platform.OS === 'ios' ? 'padding' : undefined
                 }
+
                 style={styles.keyboardView}
             >
                 <ScrollView
+                    style={styles.scrollContainer}
                     contentContainerStyle={styles.scrollGrow}
-                    showsVerticalScrollIndicator={false}
+                    showsVerticalScrollIndicator
                     keyboardShouldPersistTaps="handled"
                     automaticallyAdjustKeyboardInsets
                 >
-                    <View style={styles.appContainer}>
+                    <View style={[styles.appContainer, Platform.OS === 'web' && styles.webAppContainer]}>
                         <View style={styles.topSection}>
                             <View
                                 style={[styles.blob, styles.blob1]}
@@ -801,6 +827,7 @@ export default function LoginScreen() {
                         <View
                             style={[
                                 styles.bottomSection,
+                                Platform.OS === 'web' && styles.webBottomSection,
                                 {
                                     backgroundColor: colors.background,
                                 },
@@ -821,16 +848,54 @@ export default function LoginScreen() {
     );
 }
 
+function PasswordRule({ label, valid }) {
+    return (
+        <View style={styles.checklistItem}>
+            <MaterialCommunityIcons
+                name={valid ? 'check-circle' : 'circle-outline'}
+                size={15}
+                color={valid ? '#4CAF50' : '#7C7C82'}
+            />
+            <Text style={[styles.checklistText, valid && styles.checklistTextValid]}>
+                {label}
+            </Text>
+        </View>
+    );
+}
+
 const styles = StyleSheet.create({
     keyboardView: {
         flex: 1,
+        minHeight: 0,
+        ...(Platform.OS === 'web' ? {
+            height: '100vh',
+            width: '100%',
+        } : {}),
+    },
+    scrollContainer: {
+        flex: 1,
+        minHeight: 0,
+        ...(Platform.OS === 'web' ? {
+            height: '100%',
+            maxHeight: '100vh',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            overscrollBehaviorY: 'contain',
+        } : {}),
     },
     scrollGrow: {
         flexGrow: 1,
+        minHeight: '100%',
+        paddingBottom: 40,
     },
     appContainer: {
         flex: 1,
+        minHeight: 0,
         backgroundColor: '#0B0B0C',
+    },
+    webAppContainer: {
+        minHeight: '100vh',
+        height: 'auto',
     },
     topSection: {
         backgroundColor: '#4A1224',
@@ -902,6 +967,10 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
         paddingTop: 36,
         paddingBottom: 24,
+    },
+    webBottomSection: {
+        flexGrow: 0,
+        flexShrink: 0,
     },
     welcomeTitle: {
         fontSize: 22,
@@ -1107,15 +1176,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 10,
     },
-    checklistDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: '#555',
-        marginRight: 10,
-    },
     checklistText: {
         color: '#7C7C82',
         fontSize: 13,
+        marginLeft: 10,
+    },
+    checklistTextValid: {
+        color: '#4CAF50',
     },
 });

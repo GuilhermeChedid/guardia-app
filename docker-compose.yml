@@ -27,6 +27,8 @@ services:
       - EVIDENCE_ENCRYPTION_KEY=MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=
       - GMAIL_USER=suporteguardiaofficial@gmail.com
       - GMAIL_APP_PASSWORD=rsqafgxhvqfiumqz
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME}
     depends_on:
       - db_guardia
     networks:

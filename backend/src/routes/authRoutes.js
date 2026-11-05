@@ -32,6 +32,11 @@ const {
     alterarSenha,
     alterarPin,
 } = require('../controllers/authController');
+const {
+    createTelegramLink,
+    telegramWebhook,
+    dispatchTelegramSos,
+} = require('../controllers/telegramController');
 
 const profileUploadDirectory = path.resolve(__dirname, '../../uploads/profile');
 fs.mkdirSync(profileUploadDirectory, { recursive: true });
@@ -84,6 +89,9 @@ router.get('/contacts/:usuarioId', getContacts);
 router.post('/contacts/:usuarioId', createContact);
 router.put('/contacts/:usuarioId/:contactId', updateContact);
 router.delete('/contacts/:usuarioId/:contactId', deleteContact);
+router.post('/contacts/:usuarioId/:contactId/telegram-link', createTelegramLink);
+router.post('/sos/telegram', dispatchTelegramSos);
+router.post('/telegram/webhook', telegramWebhook);
 router.get('/evidences/:usuarioId', getEvidences);
 router.post('/evidences/:usuarioId', createEvidence);
 router.put('/evidences/:usuarioId/:evidenceId', updateEvidence);

@@ -19,6 +19,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { MARITAL_STATUS_OPTIONS } from '../../constants/profileOptions';
 import { cepMask, cpfMask, phoneMask } from '../../utils/masks';
 import { validateFullName } from '../../utils/nameValidation';
+import { isValidCPF, isValidEmail, isValidCEP } from '../../utils/validators';
 import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
 
 const BRAZILIAN_STATES = [
@@ -84,10 +85,13 @@ export default function CadastroScreen() {
     const [confirmPin, setConfirmPin] = useState('');
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [feedback, setFeedback] = useState(null);
+    const [fieldErrors, setFieldErrors] = useState({});
     const feedbackTimer = React.useRef(null);
 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [showPin, setShowPin] = useState(false);
+    const [showConfirmPin, setShowConfirmPin] = useState(false);
 
     const showFeedback = (message, type = 'error') => {
         setFeedback({ message, type });
@@ -130,29 +134,32 @@ export default function CadastroScreen() {
     };
 
     const handleRegister = async () => {
-
+    const errors = {};
     const nameError = validateFullName(name);
-    if (nameError) {
-        showFeedback(nameError);
-        return;
+    if (nameError) errors.name = nameError;
+    if (!isValidCPF(cpf)) errors.cpf = 'Informe um CPF válido.';
+    if (!maritalStatus) errors.maritalStatus = 'Selecione seu estado civil.';
+    if (phone.replace(/\D/g, '').length < 10) errors.phone = 'Informe um telefone válido.';
+    if (!isValidCEP(cep)) errors.cep = 'Informe um CEP válido.';
+    if (!street.trim()) errors.street = 'Informe o logradouro.';
+    if (!number.trim()) errors.number = 'Informe o número.';
+    if (!neighborhood.trim()) errors.neighborhood = 'Informe o bairro.';
+    if (!city.trim()) errors.city = 'Informe a cidade.';
+    if (!state) errors.state = 'Selecione o estado.';
+    if (!isValidEmail(email)) errors.email = 'Informe um e-mail válido.';
+    if (!password) errors.password = 'Informe uma senha.';
+    else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%&*_.-]).{8,}$/.test(password)) {
+        errors.password = 'A senha deve ter 8 caracteres, maiúscula, minúscula, número e símbolo.';
     }
+    if (password !== confirmPassword) errors.confirmPassword = 'As senhas não coincidem.';
+    if (!pin) errors.pin = 'Informe o PIN.';
+    else if (pin.length !== 4) errors.pin = 'O PIN deve ter 4 dígitos.';
+    if (pin !== confirmPin) errors.confirmPin = 'Os PINs não coincidem.';
+    if (!termsAccepted) errors.terms = 'É necessário aceitar os Termos de Uso.';
 
-    if (!termsAccepted) {
-    showFeedback('É necessário aceitar os Termos de Uso.');
-    return;
-    }    
-    if (password !== confirmPassword) {
-        showFeedback('As senhas não coincidem.');
-        return;
-    }
-
-    if (pin !== confirmPin) {
-        showFeedback('Os PINs não coincidem.');
-        return;
-    }
-
-    if (pin.length !== 4) {
-        showFeedback('O PIN deve ter 4 dígitos.');
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) {
+        showFeedback(Object.values(errors)[0]);
         return;
     }
 
@@ -193,6 +200,15 @@ export default function CadastroScreen() {
     }
 };
 
+    const clearFieldError = (field) => {
+        setFieldErrors((current) => {
+            if (!current[field]) return current;
+            const next = { ...current };
+            delete next[field];
+            return next;
+        });
+    };
+
     return (
         <MobileFrame backgroundColor="#0B0B0C">
             <FeedbackBanner feedback={feedback} onClose={() => setFeedback(null)} />
@@ -227,35 +243,39 @@ export default function CadastroScreen() {
                             placeholder="Maria Clara Santos"
                             icon="account-outline"
                             value={name}
-                            onChangeText={setName}
+                            onChangeText={(value) => { setName(value); clearFieldError('name'); }}
+                            error={fieldErrors.name}
                         />
                         <InputRow
                             label="CPF"
                             placeholder="000.000.000-00"
                             icon="card-account-details-outline"
                             value={cpf}
-                            onChangeText={(value) => setCpf(cpfMask(value))}
+                            onChangeText={(value) => { setCpf(cpfMask(value)); clearFieldError('cpf'); }}
                             keyboardType="numeric"
                             maxLength={14}
+                            error={fieldErrors.cpf}
                         />
                         <View style={styles.group}>
                             <Text style={styles.label}>Estado civil <Text style={styles.required}>*</Text></Text>
-                            <Pressable style={styles.inputWrap} onPress={() => setMaritalPickerVisible(true)}>
+                            <Pressable style={[styles.inputWrap, fieldErrors.maritalStatus && styles.inputWrapError]} onPress={() => { setMaritalPickerVisible(true); clearFieldError('maritalStatus'); }}>
                                 <MaterialCommunityIcons name="heart-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                 <Text style={[styles.selectorValue, { color: maritalStatus ? colors.text : colors.muted }]}>
                                     {maritalStatus || 'Selecione'}
                                 </Text>
                                 <MaterialCommunityIcons name="chevron-down" size={18} color="#8B8B93" style={styles.iconRight} />
                             </Pressable>
+                            <FieldError message={fieldErrors.maritalStatus} />
                         </View>
                         <InputRow
                             label="Telefone"
                             placeholder="(11) 99999-0000"
                             icon="phone-outline"
                             value={phone}
-                            onChangeText={(value) => setPhone(phoneMask(value))}
+                            onChangeText={(value) => { setPhone(phoneMask(value)); clearFieldError('phone'); }}
                             keyboardType="phone-pad"
                             maxLength={15}
+                            error={fieldErrors.phone}
                         />
 
                         <Section title="ENDEREÇO" />
@@ -265,31 +285,34 @@ export default function CadastroScreen() {
                             placeholder="00000-000"
                             icon="map-marker-outline"
                             value={cep}
-                            onChangeText={handleCepChange}
+                            onChangeText={(value) => { handleCepChange(value); clearFieldError('cep'); }}
                             keyboardType="numeric"
                             maxLength={9}
+                            error={fieldErrors.cep}
                         />
                         <InputRow
                             label="Logradouro"
                             placeholder="Rua, Avenida, Travessa..."
                             icon="map-marker-outline"
                             value={street}
-                            onChangeText={setStreet}
+                            onChangeText={(value) => { setStreet(value); clearFieldError('street'); }}
+                            error={fieldErrors.street}
                         />
 
                         <View style={styles.rowFields}>
                             <View style={styles.halfGroup}>
                                 <Text style={styles.label}>Número <Text style={styles.required}>*</Text></Text>
-                                <View style={styles.inputWrap}>
+                                <View style={[styles.inputWrap, fieldErrors.number && styles.inputWrapError]}>
                                     <MaterialCommunityIcons name="map-marker-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Nº"
                                         placeholderTextColor="#555"
                                         value={number}
-                                        onChangeText={setNumber}
+                                        onChangeText={(value) => { setNumber(value); clearFieldError('number'); }}
                                     />
                                 </View>
+                                <FieldError message={fieldErrors.number} />
                             </View>
                             <View style={styles.halfGroup}>
                                 <Text style={styles.label}>Complemento</Text>
@@ -311,31 +334,34 @@ export default function CadastroScreen() {
                             placeholder="Bairro"
                             icon="map-marker-outline"
                             value={neighborhood}
-                            onChangeText={setNeighborhood}
+                            onChangeText={(value) => { setNeighborhood(value); clearFieldError('neighborhood'); }}
+                            error={fieldErrors.neighborhood}
                         />
 
                         <View style={styles.rowFields}>
                             <View style={styles.cityGroup}>
                                 <Text style={styles.label}>Cidade <Text style={styles.required}>*</Text></Text>
-                                <View style={styles.inputWrap}>
+                                <View style={[styles.inputWrap, fieldErrors.city && styles.inputWrapError]}>
                                     <MaterialCommunityIcons name="map-marker-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Selecione"
                                         placeholderTextColor="#555"
                                         value={city}
-                                        onChangeText={setCity}
+                                        onChangeText={(value) => { setCity(value); clearFieldError('city'); }}
                                     />
                                 </View>
+                                <FieldError message={fieldErrors.city} />
                             </View>
                             <View style={styles.stateGroup}>
                                 <Text style={styles.label}>Estado <Text style={styles.required}>*</Text></Text>
-                                <Pressable style={styles.inputWrap} onPress={() => setStatePickerVisible(true)}>
+                                <Pressable style={[styles.inputWrap, fieldErrors.state && styles.inputWrapError]} onPress={() => { setStatePickerVisible(true); clearFieldError('state'); }}>
                                     <Text style={[styles.input, styles.stateValue, { color: state ? colors.text : colors.muted }]}>
                                         {state || 'UF'}
                                     </Text>
                                     <MaterialCommunityIcons name="chevron-down" size={18} color="#8B8B93" style={styles.iconRight} />
                                 </Pressable>
+                                <FieldError message={fieldErrors.state} />
                             </View>
                         </View>
 
@@ -346,13 +372,14 @@ export default function CadastroScreen() {
                             placeholder="seu@email.com"
                             icon="email-outline"
                             value={email}
-                            onChangeText={setEmail}
+                            onChangeText={(value) => { setEmail(value); clearFieldError('email'); }}
                             keyboardType="email-address"
+                            error={fieldErrors.email}
                         />
 
                         <View style={styles.group}>
                             <Text style={styles.label}>Senha <Text style={styles.required}>*</Text></Text>
-                            <View style={styles.inputWrap}>
+                            <View style={[styles.inputWrap, fieldErrors.password && styles.inputWrapError]}>
                                 <MaterialCommunityIcons name="lock-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                 <TextInput
                                     style={styles.input}
@@ -360,12 +387,13 @@ export default function CadastroScreen() {
                                     placeholder="Crie uma senha segura"
                                     placeholderTextColor="#555"
                                     value={password}
-                                    onChangeText={setPassword}
+                                    onChangeText={(value) => { setPassword(value); clearFieldError('password'); }}
                                 />
                                 <Pressable style={styles.iconRightPressable} onPress={() => setShowPassword((prev) => !prev)}>
                                     <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#8B8B93" />
                                 </Pressable>
                             </View>
+                            <FieldError message={fieldErrors.password} />
                             <View style={styles.rules}>
                                 <PasswordRule
                                     label="Mínimo 8 caracteres"
@@ -392,7 +420,7 @@ export default function CadastroScreen() {
 
                         <View style={styles.group}>
                             <Text style={styles.label}>Confirmação da senha <Text style={styles.required}>*</Text></Text>
-                            <View style={styles.inputWrap}>
+                            <View style={[styles.inputWrap, fieldErrors.confirmPassword && styles.inputWrapError]}>
                                 <MaterialCommunityIcons name="lock-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                 <TextInput
                                     style={styles.input}
@@ -400,12 +428,13 @@ export default function CadastroScreen() {
                                     placeholder="Repita sua senha"
                                     placeholderTextColor="#555"
                                     value={confirmPassword}
-                                    onChangeText={setConfirmPassword}
+                                    onChangeText={(value) => { setConfirmPassword(value); clearFieldError('confirmPassword'); }}
                                 />
                                 <Pressable style={styles.iconRightPressable} onPress={() => setShowConfirmPassword((prev) => !prev)}>
                                     <MaterialCommunityIcons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#8B8B93" />
                                 </Pressable>
                             </View>
+                            <FieldError message={fieldErrors.confirmPassword} />
                         </View>
 
                         <Section title="PIN DE PROVAS" />
@@ -419,41 +448,49 @@ export default function CadastroScreen() {
 
                         <View style={styles.group}>
                             <Text style={styles.label}>PIN de acesso às provas <Text style={styles.required}>*</Text></Text>
-                            <View style={styles.inputWrap}>
+                            <View style={[styles.inputWrap, fieldErrors.pin && styles.inputWrapError]}>
                                 <MaterialCommunityIcons name="lock-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                 <TextInput
                                     style={styles.input}
-                                    secureTextEntry
+                                    secureTextEntry={!showPin}
                                     placeholder="4 dígitos"
                                     placeholderTextColor="#555"
                                     keyboardType="numeric"
                                     maxLength={4}
                                     value={pin}
-                                    onChangeText={setPin}
+                                    onChangeText={(value) => { setPin(value); clearFieldError('pin'); }}
                                 />
+                                <Pressable style={styles.iconRightPressable} onPress={() => setShowPin((prev) => !prev)}>
+                                    <MaterialCommunityIcons name={showPin ? 'eye-off-outline' : 'eye-outline'} size={19} color="#8B8B93" />
+                                </Pressable>
                             </View>
+                            <FieldError message={fieldErrors.pin} />
                         </View>
 
                         <View style={styles.group}>
                             <Text style={styles.label}>Confirmar PIN <Text style={styles.required}>*</Text></Text>
-                            <View style={styles.inputWrap}>
+                            <View style={[styles.inputWrap, fieldErrors.confirmPin && styles.inputWrapError]}>
                                 <MaterialCommunityIcons name="lock-outline" size={18} color="#8B8B93" style={styles.iconLeft} />
                                 <TextInput
                                     style={styles.input}
-                                    secureTextEntry
+                                    secureTextEntry={!showConfirmPin}
                                     placeholder="Repita o PIN"
                                     placeholderTextColor="#555"
                                     keyboardType="numeric"
                                     maxLength={4}
                                     value={confirmPin}
-                                    onChangeText={setConfirmPin}
+                                    onChangeText={(value) => { setConfirmPin(value); clearFieldError('confirmPin'); }}
                                 />
+                                <Pressable style={styles.iconRightPressable} onPress={() => setShowConfirmPin((prev) => !prev)}>
+                                    <MaterialCommunityIcons name={showConfirmPin ? 'eye-off-outline' : 'eye-outline'} size={19} color="#8B8B93" />
+                                </Pressable>
                             </View>
+                            <FieldError message={fieldErrors.confirmPin} />
                         </View>
 
                         <Pressable
-                            style={styles.termsRow}
-                            onPress={() => setTermsAccepted((prev) => !prev)}
+                            style={[styles.termsRow, fieldErrors.terms && styles.termsRowError]}
+                            onPress={() => { setTermsAccepted((prev) => !prev); clearFieldError('terms'); }}
                         >
                             <View
                                 style={[
@@ -475,6 +512,7 @@ export default function CadastroScreen() {
                                 {' '}*
                             </Text>
                         </Pressable>
+                        <FieldError message={fieldErrors.terms} />
 
                         <Pressable
                             style={styles.submitButton}
@@ -571,11 +609,11 @@ function Section({ title }) {
     );
 }
 
-function InputRow({ label, placeholder, icon, right, value, onChangeText, keyboardType, maxLength }) {
+function InputRow({ label, placeholder, icon, right, value, onChangeText, keyboardType, maxLength, error }) {
     return (
         <View style={styles.group}>
             <Text style={styles.label}>{label} <Text style={styles.required}>*</Text></Text>
-            <View style={styles.inputWrap}>
+            <View style={[styles.inputWrap, error && styles.inputWrapError]}>
                 <MaterialCommunityIcons name={icon} size={18} color="#8B8B93" style={styles.iconLeft} />
                 <TextInput
                     style={[styles.input, right ? { paddingRight: 36 } : null]}
@@ -588,8 +626,14 @@ function InputRow({ label, placeholder, icon, right, value, onChangeText, keyboa
                 />
                 {right ? <MaterialCommunityIcons name={right} size={18} color="#8B8B93" style={styles.iconRight} /> : null}
             </View>
+            <FieldError message={error} />
         </View>
     );
+}
+
+function FieldError({ message }) {
+    if (!message) return null;
+    return <Text style={styles.fieldError}>{message}</Text>;
 }
 
 function PasswordRule({ label, valid }) {
@@ -728,6 +772,14 @@ const styles = StyleSheet.create({
         borderColor: 'transparent',
         justifyContent: 'center',
     },
+    inputWrapError: {
+        borderColor: '#EF4444',
+    },
+    fieldError: {
+        color: '#F87171',
+        fontSize: 11,
+        marginTop: 5,
+    },
     iconLeft: {
         position: 'absolute',
         left: 16,
@@ -796,6 +848,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
     },
     stateModal: {
+        width: '100%',
+        maxWidth: 342,
+        alignSelf: 'center',
         maxHeight: '78%',
         borderRadius: 18,
         padding: 18,
@@ -890,6 +945,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 6,
     marginBottom: 24,
+    },
+    termsRowError: {
+        borderWidth: 1,
+        borderColor: '#EF4444',
+        borderRadius: 8,
+        padding: 8,
     },
 
     checkbox: {

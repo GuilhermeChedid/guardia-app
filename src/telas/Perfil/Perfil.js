@@ -12,7 +12,6 @@ import {
     Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-//import * as FaceDetector from 'expo-face-detector';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -28,10 +27,45 @@ import { phoneMask } from '../../utils/masks';
 import { cepMask } from '../../utils/masks';
 import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
 
+const passwordRules = [
+    { label: 'Mínimo 8 caracteres', test: (password) => password.length >= 8 },
+    { label: '1 letra maiúscula', test: (password) => /[A-Z]/.test(password) },
+    { label: '1 letra minúscula', test: (password) => /[a-z]/.test(password) },
+    { label: '1 número', test: (password) => /\d/.test(password) },
+    { label: '1 caractere especial (!@#$%&*_.-)', test: (password) => /[!@#$%&*_.-]/.test(password) },
+];
+
 export default function PerfilScreen() {
     const navigation = useNavigation();
     const { isLight, colors, toggleTheme } = useTheme();
     const { profile, refreshProfile } = useUserProfile();
+
+    useEffect(() => {
+        if (Platform.OS === 'web' && typeof document !== 'undefined') {
+            const styleId = 'custom-scrollbar-style';
+            if (!document.getElementById(styleId)) {
+                const style = document.createElement('style');
+                style.id = styleId;
+                style.innerHTML = `
+                    ::-webkit-scrollbar {
+                        width: 6px;
+                    }
+                    ::-webkit-scrollbar-track {
+                        background: #0B0B0C;
+                    }
+                    ::-webkit-scrollbar-thumb {
+                        background: #2A2A2E;
+                        border-radius: 3px;
+                    }
+                    ::-webkit-scrollbar-thumb:hover {
+                        background: #3A3A3F;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+    }, []);
+
     const inputThemeStyle = {
         backgroundColor: colors.input,
         borderColor: colors.border,
@@ -80,6 +114,14 @@ export default function PerfilScreen() {
     const [currentPin, setCurrentPin] = useState('');
     const [newPin, setNewPin] = useState('');
     const [confirmPin, setConfirmPin] = useState('');
+    const [showCurrentPin, setShowCurrentPin] = useState(false);
+    const [showNewPin, setShowNewPin] = useState(false);
+    const [showConfirmPin, setShowConfirmPin] = useState(false);
+    const [showRecoveredPin, setShowRecoveredPin] = useState(false);
+    const [showRecoveredConfirmPin, setShowRecoveredConfirmPin] = useState(false);
+    const [showRecoveredPassword, setShowRecoveredPassword] = useState(false);
+    const [showRecoveredConfirmPassword, setShowRecoveredConfirmPassword] = useState(false);
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
 
     useEffect(() => {
         setName(profile.name);
@@ -232,6 +274,15 @@ const redefinirSenhaRecuperada = async () => {
         setFeedback({
             type: 'error',
             message: 'A nova senha e a confirmação não coincidem.',
+        });
+        return;
+    }
+
+    const senhaForte = passwordRules.every((rule) => rule.test(newPassword));
+    if (!senhaForte) {
+        setFeedback({
+            type: 'error',
+            message: 'A senha deve atender a todos os requisitos.',
         });
         return;
     }
@@ -535,34 +586,6 @@ const redefinirPinRecuperado = async () => {
             if (result.canceled || !result.assets?.[0]?.uri) return;
 
             const selectedPhoto = result.assets[0];
-            if (Platform.OS !== 'web') {
-                let faces;
-                try {
-                    faces = await FaceDetector.detectFacesAsync(selectedPhoto.uri, {
-                        mode: FaceDetector.FaceDetectorMode.accurate,
-                        detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
-                        runClassifications: FaceDetector.FaceDetectorClassifications.none,
-                    });
-                } catch (error) {
-                    console.error('Erro ao analisar rosto da foto:', error);
-                    setFeedback({
-                        type: 'error',
-                        message: 'Não foi possível analisar esta foto. Tente uma imagem JPG, JPEG ou PNG com o rosto bem visível.',
-                    });
-                    return;
-                }
-
-                const detectedFaces = faces?.faces || [];
-                if (detectedFaces.length !== 1) {
-                    setFeedback({
-                        type: 'error',
-                        message: detectedFaces.length === 0
-                            ? 'Escolha uma foto de perfil com seu rosto visível.'
-                            : 'Escolha uma foto com apenas uma pessoa.',
-                    });
-                    return;
-                }
-            }
 
             const storedUser = await AsyncStorage.getItem('@guardia/auth_user');
             const user = storedUser ? JSON.parse(storedUser) : null;
@@ -653,7 +676,7 @@ const redefinirPinRecuperado = async () => {
             <FeedbackBanner feedback={feedback} onClose={() => setFeedback(null)} />
             <View style={[styles.screen, { backgroundColor: colors.background }]}>
                 {screen === 'main' && (
-                    <ScrollView style={[styles.scrollContainer, Platform.OS === 'web' && styles.webScrollContainer]} contentContainerStyle={styles.mainContent} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+                    <ScrollView style={[styles.scrollContainer, Platform.OS === 'web' && styles.webScrollContainer]} contentContainerStyle={styles.mainContent} showsVerticalScrollIndicator keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
                         <View style={styles.avatarSection}>
                             <View style={styles.largeAvatar}>
                                 {profile.photoUrl ? (
@@ -739,7 +762,7 @@ const redefinirPinRecuperado = async () => {
                             <View style={styles.backSpacer} />
                         </View>
 
-                        <ScrollView style={[styles.scrollContainer, Platform.OS === 'web' && styles.webScrollContainer]} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+                        <ScrollView style={[styles.scrollContainer, Platform.OS === 'web' && styles.webScrollContainer]} contentContainerStyle={styles.formContent} showsVerticalScrollIndicator keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
                             <Pressable style={styles.avatarCenterWrap} onPress={handlePickProfilePhoto} disabled={isSavingPhoto}>
                                 <View style={styles.mediumAvatar}>
                                     {profile.photoUrl ? (
@@ -849,7 +872,7 @@ const redefinirPinRecuperado = async () => {
                             <View style={styles.backSpacer} />
                         </View>
 
-                        <ScrollView style={[styles.scrollContainer, Platform.OS === 'web' && styles.webScrollContainer]} contentContainerStyle={styles.settingsContent} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+                        <ScrollView style={[styles.scrollContainer, Platform.OS === 'web' && styles.webScrollContainer]} contentContainerStyle={styles.settingsContent} showsVerticalScrollIndicator keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
                             {/* Aparência */}
                             <Text style={styles.sectionHeader}>APARÊNCIA</Text>
                             <View style={[styles.settingsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -1036,30 +1059,57 @@ const redefinirPinRecuperado = async () => {
                                     <View style={styles.accordionBody}>
                                         {passwordStep === 'form' && (
                                             <>
-                                                <TextInput
-                                                    style={[styles.subTextInput, inputThemeStyle]}
-                                                    placeholder="Senha atual"
-                                                    placeholderTextColor={colors.muted}
-                                                    secureTextEntry
-                                                    value={currentPassword}
-                                                    onChangeText={setCurrentPassword}
-                                                />
-                                                <TextInput
-                                                    style={[styles.subTextInput, inputThemeStyle]}
-                                                    placeholder="Nova senha"
-                                                    placeholderTextColor={colors.muted}
-                                                    secureTextEntry
-                                                    value={newPassword}
-                                                    onChangeText={setNewPassword}
-                                                />
-                                                <TextInput
-                                                    style={[styles.subTextInput, inputThemeStyle]}
-                                                    placeholder="Confirmar nova senha"
-                                                    placeholderTextColor={colors.muted}
-                                                    secureTextEntry
-                                                    value={confirmPassword}
-                                                    onChangeText={setConfirmPassword}
-                                                />
+                                                <View style={[styles.pinInputWrap, inputThemeStyle]}>
+                                                    <TextInput
+                                                        style={[styles.subTextInput, styles.pinTextInput, inputThemeStyle]}
+                                                        placeholder="Senha atual"
+                                                        placeholderTextColor={colors.muted}
+                                                        secureTextEntry={!showCurrentPassword}
+                                                        value={currentPassword}
+                                                        onChangeText={setCurrentPassword}
+                                                    />
+                                                    <Pressable
+                                                        style={styles.pinEyeButton}
+                                                        onPress={() => setShowCurrentPassword((prev) => !prev)}
+                                                        accessibilityLabel={showCurrentPassword ? 'Ocultar senha atual' : 'Mostrar senha atual'}
+                                                    >
+                                                        <MaterialCommunityIcons name={showCurrentPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
+                                                    </Pressable>
+                                                </View>
+                                                <View style={[styles.pinInputWrap, inputThemeStyle]}>
+                                                    <TextInput
+                                                        style={[styles.subTextInput, styles.pinTextInput, inputThemeStyle]}
+                                                        placeholder="Nova senha"
+                                                        placeholderTextColor={colors.muted}
+                                                        secureTextEntry={!showRecoveredPassword}
+                                                        value={newPassword}
+                                                        onChangeText={setNewPassword}
+                                                    />
+                                                    <Pressable
+                                                        style={styles.pinEyeButton}
+                                                        onPress={() => setShowRecoveredPassword((prev) => !prev)}
+                                                        accessibilityLabel={showRecoveredPassword ? 'Ocultar nova senha' : 'Mostrar nova senha'}
+                                                    >
+                                                        <MaterialCommunityIcons name={showRecoveredPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
+                                                    </Pressable>
+                                                </View>
+                                                <View style={[styles.pinInputWrap, inputThemeStyle]}>
+                                                    <TextInput
+                                                        style={[styles.subTextInput, styles.pinTextInput, inputThemeStyle]}
+                                                        placeholder="Confirmar nova senha"
+                                                        placeholderTextColor={colors.muted}
+                                                        secureTextEntry={!showRecoveredConfirmPassword}
+                                                        value={confirmPassword}
+                                                        onChangeText={setConfirmPassword}
+                                                    />
+                                                    <Pressable
+                                                        style={styles.pinEyeButton}
+                                                        onPress={() => setShowRecoveredConfirmPassword((prev) => !prev)}
+                                                        accessibilityLabel={showRecoveredConfirmPassword ? 'Ocultar confirmação da senha' : 'Mostrar confirmação da senha'}
+                                                    >
+                                                        <MaterialCommunityIcons name={showRecoveredConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
+                                                    </Pressable>
+                                                </View>
                                                 <Pressable
                                                     style={styles.primaryButton}
                                                     onPress={salvarSenhaAtual}
@@ -1107,12 +1157,6 @@ const redefinirPinRecuperado = async () => {
                                                     Digite o código de 6 dígitos enviado para {recoveryEmail}
                                                 </Text>
 
-                                                <View style={styles.codeBoxesRow}>
-                                                    {[0, 1, 2, 3, 4, 5].map((i) => (
-                                                        <View key={i} style={[styles.codeBoxItem, { backgroundColor: colors.input, borderColor: colors.border }]} />
-                                                    ))}
-                                                </View>
-
                                                 <TextInput
                                                     style={[styles.subTextInputCenter, inputThemeStyle]}
                                                     value={verificationCode}
@@ -1143,22 +1187,49 @@ const redefinirPinRecuperado = async () => {
                                                     <Text style={styles.verifiedText}>Identidade verificada</Text>
                                                 </View>
                                                 <Text style={styles.innerDescText}>Crie uma nova senha segura para sua conta.</Text>
-                                                <TextInput
-                                                    style={[styles.subTextInput, inputThemeStyle]}
-                                                    placeholder="Nova senha"
-                                                    placeholderTextColor={colors.muted}
-                                                    secureTextEntry
-                                                    value={newPassword}
-                                                    onChangeText={setNewPassword}
-                                                />
-                                                <TextInput
-                                                    style={[styles.subTextInput, inputThemeStyle]}
-                                                    placeholder="Confirmar nova senha"
-                                                    placeholderTextColor={colors.muted}
-                                                    secureTextEntry
-                                                    value={confirmPassword}
-                                                    onChangeText={setConfirmPassword}
-                                                />
+                                                <View style={[styles.pinInputWrap, inputThemeStyle]}>
+                                                    <TextInput
+                                                        style={[styles.subTextInput, styles.pinTextInput, inputThemeStyle]}
+                                                        placeholder="Nova senha"
+                                                        placeholderTextColor={colors.muted}
+                                                        secureTextEntry={!showRecoveredPassword}
+                                                        value={newPassword}
+                                                        onChangeText={setNewPassword}
+                                                    />
+                                                    <Pressable
+                                                        style={styles.pinEyeButton}
+                                                        onPress={() => setShowRecoveredPassword((prev) => !prev)}
+                                                        accessibilityLabel={showRecoveredPassword ? 'Ocultar nova senha' : 'Mostrar nova senha'}
+                                                    >
+                                                        <MaterialCommunityIcons name={showRecoveredPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
+                                                    </Pressable>
+                                                </View>
+                                                <View style={[styles.pinInputWrap, inputThemeStyle]}>
+                                                    <TextInput
+                                                        style={[styles.subTextInput, styles.pinTextInput, inputThemeStyle]}
+                                                        placeholder="Confirmar nova senha"
+                                                        placeholderTextColor={colors.muted}
+                                                        secureTextEntry={!showRecoveredConfirmPassword}
+                                                        value={confirmPassword}
+                                                        onChangeText={setConfirmPassword}
+                                                    />
+                                                    <Pressable
+                                                        style={styles.pinEyeButton}
+                                                        onPress={() => setShowRecoveredConfirmPassword((prev) => !prev)}
+                                                        accessibilityLabel={showRecoveredConfirmPassword ? 'Ocultar confirmação da senha' : 'Mostrar confirmação da senha'}
+                                                    >
+                                                        <MaterialCommunityIcons name={showRecoveredConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
+                                                    </Pressable>
+                                                </View>
+                                                <View style={styles.passwordRules}>
+                                                    {passwordRules.map((rule) => (
+                                                        <PasswordRule
+                                                            key={rule.label}
+                                                            label={rule.label}
+                                                            valid={rule.test(newPassword)}
+                                                        />
+                                                    ))}
+                                                </View>
                                                 <Pressable
                                                     style={styles.primaryButton}
                                                     onPress={redefinirSenhaRecuperada}
@@ -1203,36 +1274,63 @@ const redefinirPinRecuperado = async () => {
                                     <View style={styles.accordionBody}>
                                         {pinStep === 'form' && (
                                             <>
-                                                <TextInput
-                                                    style={[styles.subTextInput, inputThemeStyle]}
-                                                    placeholder="PIN atual (4 dígitos)"
-                                                    placeholderTextColor={colors.muted}
-                                                    secureTextEntry
-                                                    keyboardType="number-pad"
-                                                    maxLength={4}
-                                                    value={currentPin}
-                                                    onChangeText={setCurrentPin}
-                                                />
-                                                <TextInput
-                                                    style={[styles.subTextInput, inputThemeStyle]}
-                                                    placeholder="Novo PIN"
-                                                    placeholderTextColor={colors.muted}
-                                                    secureTextEntry
-                                                    keyboardType="number-pad"
-                                                    maxLength={4}
-                                                    value={newPin}
-                                                    onChangeText={setNewPin}
-                                                />
-                                                <TextInput
-                                                    style={[styles.subTextInput, inputThemeStyle]}
-                                                    placeholder="Confirmar novo PIN"
-                                                    placeholderTextColor={colors.muted}
-                                                    secureTextEntry
-                                                    keyboardType="number-pad"
-                                                    maxLength={4}
-                                                    value={confirmPin}
-                                                    onChangeText={setConfirmPin}
-                                                />
+                                                <View style={[styles.pinInputWrap, inputThemeStyle]}>
+                                                    <TextInput
+                                                        style={[styles.subTextInput, styles.pinTextInput, inputThemeStyle]}
+                                                        placeholder="PIN atual (4 dígitos)"
+                                                        placeholderTextColor={colors.muted}
+                                                        secureTextEntry={!showCurrentPin}
+                                                        keyboardType="number-pad"
+                                                        maxLength={4}
+                                                        value={currentPin}
+                                                        onChangeText={setCurrentPin}
+                                                    />
+                                                    <Pressable
+                                                        style={styles.pinEyeButton}
+                                                        onPress={() => setShowCurrentPin((prev) => !prev)}
+                                                        accessibilityLabel={showCurrentPin ? 'Ocultar PIN atual' : 'Mostrar PIN atual'}
+                                                    >
+                                                        <MaterialCommunityIcons name={showCurrentPin ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
+                                                    </Pressable>
+                                                </View>
+                                                <View style={[styles.pinInputWrap, inputThemeStyle]}>
+                                                    <TextInput
+                                                        style={[styles.subTextInput, styles.pinTextInput, inputThemeStyle]}
+                                                        placeholder="Novo PIN"
+                                                        placeholderTextColor={colors.muted}
+                                                        secureTextEntry={!showNewPin}
+                                                        keyboardType="number-pad"
+                                                        maxLength={4}
+                                                        value={newPin}
+                                                        onChangeText={setNewPin}
+                                                    />
+                                                    <Pressable
+                                                        style={styles.pinEyeButton}
+                                                        onPress={() => setShowNewPin((prev) => !prev)}
+                                                        accessibilityLabel={showNewPin ? 'Ocultar novo PIN' : 'Mostrar novo PIN'}
+                                                    >
+                                                        <MaterialCommunityIcons name={showNewPin ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
+                                                    </Pressable>
+                                                </View>
+                                                <View style={[styles.pinInputWrap, inputThemeStyle]}>
+                                                    <TextInput
+                                                        style={[styles.subTextInput, styles.pinTextInput, inputThemeStyle]}
+                                                        placeholder="Confirmar novo PIN"
+                                                        placeholderTextColor={colors.muted}
+                                                        secureTextEntry={!showConfirmPin}
+                                                        keyboardType="number-pad"
+                                                        maxLength={4}
+                                                        value={confirmPin}
+                                                        onChangeText={setConfirmPin}
+                                                    />
+                                                    <Pressable
+                                                        style={styles.pinEyeButton}
+                                                        onPress={() => setShowConfirmPin((prev) => !prev)}
+                                                        accessibilityLabel={showConfirmPin ? 'Ocultar confirmação do PIN' : 'Mostrar confirmação do PIN'}
+                                                    >
+                                                        <MaterialCommunityIcons name={showConfirmPin ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
+                                                    </Pressable>
+                                                </View>
                                                 <Pressable
                                                     style={styles.primaryButton}
                                                     onPress={salvarPinAtual}
@@ -1280,12 +1378,6 @@ const redefinirPinRecuperado = async () => {
                                                     Código enviado para {recoveryEmail}
                                                 </Text>
 
-                                                <View style={styles.codeBoxesRow}>
-                                                    {[0, 1, 2, 3, 4, 5].map((i) => (
-                                                        <View key={i} style={[styles.codeBoxItem, { backgroundColor: colors.input, borderColor: colors.border }]} />
-                                                    ))}
-                                                </View>
-
                                                 <TextInput
                                                     style={[styles.subTextInputCenter, inputThemeStyle]}
                                                     value={verificationCode}
@@ -1318,26 +1410,44 @@ const redefinirPinRecuperado = async () => {
                                                 <Text style={styles.innerDescText}>
                                                     Crie um novo PIN de 4 dígitos para proteger suas evidências.
                                                 </Text>
-                                                <TextInput
-                                                    style={[styles.subTextInput, inputThemeStyle]}
-                                                    placeholder="Novo PIN"
-                                                    placeholderTextColor={colors.muted}
-                                                    secureTextEntry
-                                                    keyboardType="number-pad"
-                                                    maxLength={4}
-                                                    value={newPin}
-                                                    onChangeText={setNewPin}
-                                                />
-                                                <TextInput
-                                                    style={[styles.subTextInput, inputThemeStyle]}
-                                                    placeholder="Confirmar novo PIN"
-                                                    placeholderTextColor={colors.muted}
-                                                    secureTextEntry
-                                                    keyboardType="number-pad"
-                                                    maxLength={4}
-                                                    value={confirmPin}
-                                                    onChangeText={setConfirmPin}
-                                                />
+                                                <View style={[styles.pinInputWrap, inputThemeStyle]}>
+                                                    <TextInput
+                                                        style={[styles.subTextInput, styles.pinTextInput, inputThemeStyle]}
+                                                        placeholder="Novo PIN"
+                                                        placeholderTextColor={colors.muted}
+                                                        secureTextEntry={!showRecoveredPin}
+                                                        keyboardType="number-pad"
+                                                        maxLength={4}
+                                                        value={newPin}
+                                                        onChangeText={setNewPin}
+                                                    />
+                                                    <Pressable
+                                                        style={styles.pinEyeButton}
+                                                        onPress={() => setShowRecoveredPin((prev) => !prev)}
+                                                        accessibilityLabel={showRecoveredPin ? 'Ocultar novo PIN' : 'Mostrar novo PIN'}
+                                                    >
+                                                        <MaterialCommunityIcons name={showRecoveredPin ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
+                                                    </Pressable>
+                                                </View>
+                                                <View style={[styles.pinInputWrap, inputThemeStyle]}>
+                                                    <TextInput
+                                                        style={[styles.subTextInput, styles.pinTextInput, inputThemeStyle]}
+                                                        placeholder="Confirmar novo PIN"
+                                                        placeholderTextColor={colors.muted}
+                                                        secureTextEntry={!showRecoveredConfirmPin}
+                                                        keyboardType="number-pad"
+                                                        maxLength={4}
+                                                        value={confirmPin}
+                                                        onChangeText={setConfirmPin}
+                                                    />
+                                                    <Pressable
+                                                        style={styles.pinEyeButton}
+                                                        onPress={() => setShowRecoveredConfirmPin((prev) => !prev)}
+                                                        accessibilityLabel={showRecoveredConfirmPin ? 'Ocultar confirmação do PIN' : 'Mostrar confirmação do PIN'}
+                                                    >
+                                                        <MaterialCommunityIcons name={showRecoveredConfirmPin ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
+                                                    </Pressable>
+                                                </View>
                                                 <Pressable
                                                     style={styles.primaryButton}
                                                     onPress={redefinirPinRecuperado}
@@ -1473,15 +1583,29 @@ const redefinirPinRecuperado = async () => {
     );
 }
 
+function PasswordRule({ label, valid }) {
+    return (
+        <View style={styles.passwordRuleRow}>
+            <MaterialCommunityIcons
+                name={valid ? 'check-circle' : 'circle-outline'}
+                size={15}
+                color={valid ? '#4CAF50' : '#7C7C82'}
+            />
+            <Text style={[styles.passwordRuleText, valid && styles.passwordRuleTextValid]}>
+                {label}
+            </Text>
+        </View>
+    );
+}
+
 const styles = StyleSheet.create({
     screen: {
-        width: '100%',
-        height: '100%',
-        minHeight: 0,
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         backgroundColor: '#0C0D10',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
     },
     scrollContainer: {
         flex: 1,
@@ -1492,7 +1616,6 @@ const styles = StyleSheet.create({
     webScrollContainer: {
         overflowY: 'auto',
         overflowX: 'hidden',
-        maxHeight: '100%',
         overscrollBehaviorY: 'contain',
     },
     mainContent: {
@@ -1915,6 +2038,42 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginBottom: 10,
     },
+    passwordRules: {
+        marginTop: 2,
+        marginBottom: 12,
+        paddingLeft: 4,
+        gap: 4,
+    },
+    passwordRuleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    passwordRuleText: {
+        color: '#7C7C82',
+        fontSize: 12,
+        marginLeft: 6,
+    },
+    passwordRuleTextValid: {
+        color: '#4CAF50',
+    },
+    pinInputWrap: {
+        position: 'relative',
+        borderRadius: 10,
+        marginBottom: 10,
+    },
+    pinTextInput: {
+        marginBottom: 0,
+        paddingRight: 44,
+    },
+    pinEyeButton: {
+        position: 'absolute',
+        right: 0,
+        top: 0,
+        width: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     linkTextCentered: {
         color: '#C83C59',
         fontSize: 13,
@@ -1940,19 +2099,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         lineHeight: 18,
         marginBottom: 12,
-    },
-    codeBoxesRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 12,
-    },
-    codeBoxItem: {
-        width: 42,
-        height: 48,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: '#2D3748',
-        backgroundColor: '#0C0D10',
     },
     resendPrompt: {
         color: '#94A3B8',

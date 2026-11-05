@@ -10,7 +10,8 @@ import {
     View,
     KeyboardAvoidingView,
     Platform,
-    Linking
+    Linking,
+    Share,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -204,6 +205,21 @@ export default function ContatosScreen() {
         }
     };
 
+    const linkTelegram = async (contact) => {
+        try {
+            const response = await api.post(`/auth/contacts/${userId}/${contact.id}/telegram-link`);
+            const shareMessage = `Olá! Abra este link no seu Telegram e toque em Iniciar para receber meus alertas SOS: ${response.data.url}`;
+            await Share.share({
+                message: shareMessage,
+                title: 'Vincular contato ao Telegram',
+            });
+            showFeedback('Envie o link para o contato. Ele deve tocar em Iniciar no Telegram uma única vez.');
+        } catch (error) {
+            if (error?.message?.toLowerCase().includes('cancel')) return;
+            showFeedback(error.response?.data?.message || 'Não foi possível gerar o vínculo com o Telegram.', 'error');
+        }
+    };
+
     const renderContact = ({ item }) => (
         <View style={[styles.contactCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.avatar, { backgroundColor: item.color }]}>
@@ -352,6 +368,15 @@ export default function ContatosScreen() {
                         <Pressable style={styles.optionRow} onPress={openEdit}>
                             <MaterialCommunityIcons name="square-edit-outline" size={22} color={colors.text} />
                             <Text style={[styles.optionText, { color: colors.text }]}>Editar contato</Text>
+                        </Pressable>
+
+                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+                        <Pressable style={styles.optionRow} onPress={() => linkTelegram(selectedContact)}>
+                            <MaterialCommunityIcons name="send-circle-outline" size={22} color="#2AABEE" />
+                            <Text style={[styles.optionText, { color: colors.text }]}>
+                                {selectedContact?.telegram_vinculado ? 'Vincular novamente ao Telegram' : 'Vincular ao Telegram'}
+                            </Text>
                         </Pressable>
 
                         <View style={[styles.divider, { backgroundColor: colors.border }]} />

@@ -18,13 +18,6 @@ const CARDS = [
     { title: 'Conteúdo Informativo', subtitle: 'Apoio e emergências', color: '#27AE60', bg: 'rgba(39,174,96,0.12)', icon: 'shield-half-full' },
 ];
 
-const normalizeBrazilianPhone = (phone) => {
-    const digits = String(phone || '').replace(/\D/g, '');
-    if (digits.startsWith('55')) return digits;
-    if (digits.startsWith('0')) return `55${digits.slice(1)}`;
-    return `55${digits}`;
-};
-
 const getInitials = (value = '') => value
     .trim()
     .split(/\s+/)
@@ -74,7 +67,6 @@ export default function HomeScreen() {
                 showFeedback(`Localização imprecisa: o GPS informou uma precisão aproximada de ${Math.round(accuracy)} metros. Ative a localização precisa e tente novamente.`);
                 return;
             }
-            const mapsLink = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
             const stored = await AsyncStorage.getItem('@guardia/auth_user');
             const user = stored ? JSON.parse(stored) : null;
             const response = user?.id ? await api.get(`/auth/contacts/${user.id}`) : null;
@@ -88,37 +80,40 @@ export default function HomeScreen() {
                 return;
             }
 
-            const selectedContact = contacts.find((contact) => contact.nome?.trim().toLowerCase() === 'eu') || contacts[0];
-            const phone = normalizeBrazilianPhone(selectedContact.telefone);
-            if (phone.length < 12) {
-                showFeedback(`Telefone inválido. Corrija o telefone de ${selectedContact.nome} antes de usar o SOS.`);
+            const telegramContacts = contacts.filter((contact) => contact.telegram_vinculado);
+            if (!telegramContacts.length) {
+                showFeedback('Nenhum contato está vinculado ao Telegram. Abra Contatos, escolha um contato e toque em "Vincular ao Telegram".');
                 return;
             }
 
-            const message = [
-                '🚨 SOCORRO! A pessoa acionou um alerta de emergência.',
-                `Nome: ${user?.nome || profile.name || 'Usuária'}`,
-                `Localização atual: ${mapsLink}`,
-                'Abra o link para ver a posição no mapa. Este alerta foi preparado pelo app Guardiã.',
-            ].join('\n');
-            const encodedMessage = encodeURIComponent(message);
-            const whatsappUrl = Platform.OS === 'web'
-                ? `https://web.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`
-                : `https://wa.me/${phone}?text=${encodedMessage}`;
+            await api.post('/auth/sos/telegram', {
+                usuario_id: user.id,
+                nome: user?.nome || profile.name || 'Usuária',
+                latitude,
+                longitude,
+                accuracy,
+            });
 
-            if (Platform.OS !== 'web') {
-                const canOpenWhatsApp = await Linking.canOpenURL(whatsappUrl);
-                if (!canOpenWhatsApp) {
-                    showFeedback('WhatsApp não encontrado. Instale o WhatsApp ou use o link da localização para avisar seus contatos.');
-                    return;
-                }
+            const testPhone = process.env.EXPO_PUBLIC_SOS_TEST_PHONE || '+5561998171598';
+            const phoneUrl = `tel:${testPhone}`;
+            const callOpened = Platform.OS !== 'web' && await Linking.canOpenURL(phoneUrl);
+            if (callOpened) {
+                await Linking.openURL(phoneUrl);
             }
-
-            await Linking.openURL(whatsappUrl);
-            showFeedback(`Mensagem preparada. O WhatsApp foi aberto para ${selectedContact.nome}. Confirme o envio. Precisão do GPS: ${accuracy ? `${Math.round(accuracy)} m` : 'não informada'}.`, 'success');
+            showFeedback(
+                callOpened
+                    ? 'Alerta enviado automaticamente pelo Telegram. A ligação de teste foi aberta.'
+                    : 'Alerta enviado automaticamente pelo Telegram. A ligação de teste só pode ser iniciada no celular.',
+                'success',
+            );
         } catch (error) {
-            console.error('Erro ao preparar alerta SOS:', error);
-            showFeedback('Erro no SOS. Não foi possível preparar a mensagem de emergência. Tente novamente.');
+            if (error.response?.status !== 409) {
+                console.error('Erro ao preparar alerta SOS:', error);
+            }
+            showFeedback(
+                error.response?.data?.message
+                    || 'Erro no SOS. Não foi possível enviar o alerta. Tente novamente.',
+            );
         }
     };
 

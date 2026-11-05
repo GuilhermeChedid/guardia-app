@@ -1,11 +1,19 @@
-
 {
   "expo": {
     "plugins": [
       "expo-font",
       "expo-asset",
       "expo-status-bar",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      "expo-build-properties"
     ],
     "android": {
       "softwareKeyboardLayoutMode": "resize",

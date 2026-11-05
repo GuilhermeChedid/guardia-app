@@ -54,8 +54,14 @@ CREATE TABLE contatos_confianca (
     usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
     nome VARCHAR(255) NOT NULL,
     relacao VARCHAR(50) NOT NULL,
-    telefone VARCHAR(20) NOT NULL
+    telefone VARCHAR(20) NOT NULL,
+    telegram_chat_id VARCHAR(100),
+    telegram_link_token VARCHAR(100)
 );
+
+ALTER TABLE contatos_confianca
+    ADD COLUMN IF NOT EXISTS telegram_chat_id VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS telegram_link_token VARCHAR(100);
 
 -- ============================================================================
 -- 5. EVIDENCIAS (Relacionamento 1:N)
@@ -81,9 +87,12 @@ CREATE TABLE tokens_recuperacao (
     codigo VARCHAR(100) NOT NULL,
     tipo VARCHAR(50) NOT NULL,
     utilizado BOOLEAN NOT NULL DEFAULT FALSE,
-    data_expiracao TIMESTAMP WITH TIME ZONE NOT NULL
+    data_expiracao TIMESTAMP WITH TIME ZONE NOT NULL,
     tentativas INTEGER NOT NULL DEFAULT 0
 );
+
+ALTER TABLE tokens_recuperacao
+    ADD COLUMN IF NOT EXISTS tentativas INTEGER NOT NULL DEFAULT 0;
 
 -- ============================================================================
 -- 7. POSTS (Publicações do Feed)

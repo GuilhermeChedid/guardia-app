@@ -98,9 +98,12 @@ CREATE TABLE tokens_recuperacao (
     codigo VARCHAR(100) NOT NULL,
     tipo VARCHAR(50) NOT NULL,
     utilizado BOOLEAN NOT NULL DEFAULT FALSE,
-    data_expiracao TIMESTAMP WITH TIME ZONE NOT NULL
+    data_expiracao TIMESTAMP WITH TIME ZONE NOT NULL,
     tentativas INTEGER NOT NULL DEFAULT 0
 );
+
+ALTER TABLE tokens_recuperacao
+    ADD COLUMN IF NOT EXISTS tentativas INTEGER NOT NULL DEFAULT 0;
 
 -- ============================================================================
 -- 7. POSTS (Publicações do Feed)

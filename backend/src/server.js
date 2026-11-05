@@ -3,7 +3,7 @@ const dotenv = require('dotenv');
 
 // Tenta carregar o .env, mas não quebra se estiver usando variáveis injetadas pelo Docker
 dotenv.config({
-    path: path.resolve(__dirname, '.env'),
+    path: path.resolve(__dirname, '../../../.env'),
 });
 // Se o seu .env estiver na raiz do projeto fora da pasta src, ajuste conforme necessário, 
 // mas garanta que o Docker está copiando ele corretamente.

@@ -47,7 +47,24 @@ Edite o arquivo `.env` para configurar a URL da API:
 
 ```env
 EXPO_PUBLIC_API_URL=http://localhost:3000/api
+TELEGRAM_BOT_TOKEN=token-emitido-pelo-BotFather
+TELEGRAM_BOT_USERNAME=nome_do_bot_sem_@
+EXPO_PUBLIC_SOS_TEST_PHONE=+5561998171598
 ```
+
+### Telegram no SOS
+
+1. Crie um bot no Telegram usando o `@BotFather` e configure `TELEGRAM_BOT_TOKEN` e
+   `TELEGRAM_BOT_USERNAME` somente no `.env` do backend.
+2. Publique o backend em uma URL HTTPS e configure o webhook:
+   `https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://SEU_HOST/api/auth/telegram/webhook`.
+3. Na tela de contatos, escolha **Vincular ao Telegram**. O contato deve tocar em
+   **Iniciar** uma única vez no bot.
+4. Durante os testes, o SOS abre a ligação para `+55 61 99817-1598`. A ligação
+   depende da confirmação do sistema telefônico; o Telegram é enviado automaticamente.
+5. Se o app retornar HTTP 409 ao acionar o SOS, isso significa que nenhum contato
+   concluiu o vínculo. No iOS pelo Expo Go, abra o link compartilhado no Telegram
+   do contato e confirme **Iniciar** no bot antes de tentar novamente.
 
 ## Observações
 
