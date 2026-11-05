@@ -36,6 +36,8 @@ const {
     createTelegramLink,
     telegramWebhook,
     dispatchTelegramSos,
+    updateTelegramSosLocation,
+    stopTelegramSos,
 } = require('../controllers/telegramController');
 
 const profileUploadDirectory = path.resolve(__dirname, '../../uploads/profile');
@@ -91,6 +93,8 @@ router.put('/contacts/:usuarioId/:contactId', updateContact);
 router.delete('/contacts/:usuarioId/:contactId', deleteContact);
 router.post('/contacts/:usuarioId/:contactId/telegram-link', createTelegramLink);
 router.post('/sos/telegram', dispatchTelegramSos);
+router.patch('/sos/telegram/:sessionId/location', updateTelegramSosLocation);
+router.post('/sos/telegram/:sessionId/stop', stopTelegramSos);
 router.post('/telegram/webhook', telegramWebhook);
 router.get('/evidences/:usuarioId', getEvidences);
 router.post('/evidences/:usuarioId', createEvidence);

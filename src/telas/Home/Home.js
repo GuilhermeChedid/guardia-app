@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Image, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Animated, Image, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
 import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
+import { startSosTracking, stopSosTracking } from '../../services/sosTracking';
 
 const CARDS = [
     { title: 'Guardar Evidência', subtitle: 'Seguro e criptografado', color: '#EB5757', bg: 'rgba(235,87,87,0.12)', icon: 'record-circle' },
@@ -37,6 +38,7 @@ export default function HomeScreen() {
     const [sosCountdown, setSosCountdown] = useState(null);
     const [sosPulse, setSosPulse] = useState(false);
     const [sosDispatched, setSosDispatched] = useState(false);
+    const [isLocationActive, setIsLocationActive] = useState(false);
     const [feedback, setFeedback] = useState(null);
     const feedbackTimer = useRef(null);
 
@@ -46,9 +48,43 @@ export default function HomeScreen() {
         feedbackTimer.current = setTimeout(() => setFeedback(null), 4000);
     };
 
+    const explainBackgroundLocationPermission = async () => {
+        if (Platform.OS === 'web') return;
+
+        const permission = await Location.getBackgroundPermissionsAsync();
+        if (permission.status === 'granted') return;
+
+        await new Promise((resolve) => {
+            Alert.alert(
+                'Localização em segundo plano',
+                'Para o SOS continuar funcionando e enviando sua localização mesmo com o aplicativo minimizado ou a tela bloqueada, permita o acesso à localização o tempo todo na próxima tela.',
+                [{ text: 'Continuar', onPress: resolve }],
+                { cancelable: false },
+            );
+        });
+    };
+
     useEffect(() => () => clearTimeout(feedbackTimer.current), []);
 
+    const refreshLocationStatus = useCallback(async () => {
+        try {
+            const permission = await Location.getForegroundPermissionsAsync();
+            const servicesEnabled = await Location.hasServicesEnabledAsync();
+            setIsLocationActive(permission.status === 'granted' && servicesEnabled);
+        } catch (error) {
+            console.error('Erro ao verificar status da localização:', error);
+            setIsLocationActive(false);
+        }
+    }, []);
+
+    useFocusEffect(
+        React.useCallback(() => {
+            refreshLocationStatus();
+        }, [refreshLocationStatus])
+    );
+
     const dispatchSos = async () => {
+        let sessionId = null;
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
@@ -87,13 +123,16 @@ export default function HomeScreen() {
                 return;
             }
 
-            await api.post('/auth/sos/telegram', {
+            const sosResponse = await api.post('/auth/sos/telegram', {
                 usuario_id: user.id,
                 nome: user?.nome || profile.name || 'Usuária',
                 latitude,
                 longitude,
                 accuracy,
             });
+            sessionId = sosResponse.data.session_id;
+            await explainBackgroundLocationPermission();
+            await startSosTracking(sessionId);
 
             const storedPoliceContact = await AsyncStorage.getItem(POLICE_CONTACT_STORAGE_KEY);
             const policeContact = storedPoliceContact ? JSON.parse(storedPoliceContact) : null;
@@ -112,6 +151,14 @@ export default function HomeScreen() {
                 'success',
             );
         } catch (error) {
+            if (sessionId) {
+                try {
+                    await api.post(`/auth/sos/telegram/${sessionId}/stop`);
+                } catch (stopError) {
+                    console.error('Erro ao encerrar sessão SOS após falha:', stopError);
+                }
+            }
+            setSosDispatched(false);
             if (error.response?.status !== 409) {
                 console.error('Erro ao preparar alerta SOS:', error);
             }
@@ -146,6 +193,15 @@ export default function HomeScreen() {
     }, [sosCountdown]);
 
     useEffect(() => {
+        if (route.params?.stopSos) {
+            stopSosTracking().catch((error) => {
+                console.error('Erro ao encerrar SOS pelo widget:', error);
+            });
+            setSosCountdown(null);
+            setSosDispatched(false);
+            navigation.setParams({ stopSos: false });
+            return;
+        }
         if (!route.params?.startSos) return;
 
         setSosDispatched(false);
@@ -197,6 +253,12 @@ export default function HomeScreen() {
         if (sosCountdown !== null || sosDispatched) {
             setSosCountdown(null);
             setSosDispatched(false);
+            if (sosDispatched) {
+                stopSosTracking().catch((error) => {
+                    console.error('Erro ao encerrar SOS:', error);
+                    showFeedback('Não foi possível encerrar o compartilhamento de localização.');
+                });
+            }
             return;
         }
 
@@ -275,7 +337,7 @@ export default function HomeScreen() {
                         <View style={styles.summaryMetrics}>
                             <Metric label="Contatos" value={`${profile.contactsCount} salvos`} active />
                             <View style={styles.divider} />
-                            <Metric label="Localização" value="Inativa" />
+                            <Metric label="Localização" value={isLocationActive ? 'Ativa' : 'Inativa'} active={isLocationActive} />
                             <View style={styles.divider} />
                             <Metric label="Evidências" value={`${profile.evidenceCount} salvas`} active />
                         </View>

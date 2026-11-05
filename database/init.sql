@@ -89,6 +89,16 @@ CREATE TABLE IF NOT EXISTS eventos_sos (
     data_hora TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS sessoes_sos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    nome VARCHAR(255) NOT NULL,
+    ativa BOOLEAN NOT NULL DEFAULT TRUE,
+    mensagens_localizacao JSONB NOT NULL DEFAULT '[]'::jsonb,
+    criada_em TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    encerrada_em TIMESTAMP WITH TIME ZONE
+);
+
 -- ============================================================================
 -- 6. TOKENS_RECUPERACAO (Relacionamento 1:N)
 -- ============================================================================

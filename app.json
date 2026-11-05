@@ -6,6 +6,14 @@
       "expo-status-bar",
       "expo-sharing",
       [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permita que o Guardia use sua localização para enviar alertas SOS.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isIosBackgroundLocationEnabled": true
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {

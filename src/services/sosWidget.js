@@ -12,12 +12,29 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { navigationRef } from '../navigation/AppNavigator';
+import { ACTIVE_SOS_SESSION_KEY, stopSosTracking } from './sosTracking';
 
 export const SOS_WIDGET_ID = 'guardia-sos';
 export const PENDING_SOS_STORAGE_KEY = '@guardia/pending-sos';
 
 export function SosBubble({ close }) {
     const handlePress = async () => {
+        const activeSession = await AsyncStorage.getItem(ACTIVE_SOS_SESSION_KEY);
+        if (activeSession) {
+            try {
+                await stopSosTracking();
+            } catch (error) {
+                console.error('Erro ao encerrar SOS pelo widget:', error);
+            }
+            await AsyncStorage.setItem(PENDING_SOS_STORAGE_KEY, 'false');
+            if (navigationRef.isReady()) {
+                navigationRef.navigate('Home', { stopSos: true });
+            }
+            close();
+            await openApp();
+            return;
+        }
+
         await AsyncStorage.setItem(PENDING_SOS_STORAGE_KEY, 'true');
         if (navigationRef.isReady()) {
             navigationRef.navigate('Home', { startSos: true });

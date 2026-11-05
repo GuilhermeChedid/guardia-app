@@ -144,14 +144,30 @@ const dispatchTelegramSos = async (req, res) => {
             `Precisão aproximada: ${accuracy ? `${Math.round(accuracy)} m` : 'não informada'}.`,
         ].join('\n');
 
-        const results = await Promise.allSettled(contacts.rows.map((contact) =>
-            telegramRequest(token, 'sendMessage', { chat_id: contact.telegram_chat_id, text: message })
-        ));
-        const sent = results.filter((result) => result.status === 'fulfilled').length;
+        const results = await Promise.allSettled(contacts.rows.map(async (contact) => {
+            await telegramRequest(token, 'sendMessage', { chat_id: contact.telegram_chat_id, text: message });
+            const locationMessage = await telegramRequest(token, 'sendLocation', {
+                chat_id: contact.telegram_chat_id,
+                latitude: Number(latitude),
+                longitude: Number(longitude),
+                live_period: 86400,
+            });
+            return { chat_id: contact.telegram_chat_id, message_id: locationMessage.message_id };
+        }));
+        const sentLocations = results
+            .filter((result) => result.status === 'fulfilled')
+            .map((result) => result.value);
+        const sent = sentLocations.length;
         if (!sent) {
             throw new Error('Nenhum alerta foi aceito pelo Telegram.');
         }
-        return res.json({ success: true, sent });
+        const session = await client.query(
+            `INSERT INTO sessoes_sos (usuario_id, nome, mensagens_localizacao)
+             VALUES ($1, $2, $3::jsonb)
+             RETURNING id`,
+            [usuario_id, nome || 'Usuária', JSON.stringify(sentLocations)],
+        );
+        return res.json({ success: true, sent, session_id: session.rows[0].id });
     } catch (error) {
         console.error('Erro ao enviar SOS pelo Telegram:', error);
         return res.status(502).json({
@@ -163,8 +179,77 @@ const dispatchTelegramSos = async (req, res) => {
     }
 };
 
+const updateTelegramSosLocation = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { latitude, longitude } = req.body;
+        if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) {
+            return res.status(400).json({ success: false, message: 'Localização inválida.' });
+        }
+        const { token } = requireBotConfig();
+        const sessionResult = await client.query(
+            `SELECT mensagens_localizacao FROM sessoes_sos
+             WHERE id = $1 AND ativa = TRUE`,
+            [req.params.sessionId],
+        );
+        if (!sessionResult.rows.length) {
+            return res.status(404).json({ success: false, message: 'Sessão SOS não encontrada ou encerrada.' });
+        }
+        const messages = sessionResult.rows[0].mensagens_localizacao || [];
+        const results = await Promise.allSettled(messages.map((message) =>
+            telegramRequest(token, 'editMessageLiveLocation', {
+                chat_id: message.chat_id,
+                message_id: message.message_id,
+                latitude: Number(latitude),
+                longitude: Number(longitude),
+            })
+        ));
+        if (!results.some((result) => result.status === 'fulfilled')) {
+            throw new Error('Nenhuma localização SOS foi atualizada no Telegram.');
+        }
+        return res.json({ success: true });
+    } catch (error) {
+        console.error('Erro ao atualizar localização SOS:', error);
+        return res.status(502).json({ success: false, message: 'Não foi possível atualizar a localização do SOS.' });
+    } finally {
+        client.release();
+    }
+};
+
+const stopTelegramSos = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { token } = requireBotConfig();
+        const sessionResult = await client.query(
+            `SELECT mensagens_localizacao FROM sessoes_sos
+             WHERE id = $1 AND ativa = TRUE`,
+            [req.params.sessionId],
+        );
+        if (!sessionResult.rows.length) return res.json({ success: true });
+        const messages = sessionResult.rows[0].mensagens_localizacao || [];
+        await Promise.allSettled(messages.map((message) =>
+            telegramRequest(token, 'stopMessageLiveLocation', {
+                chat_id: message.chat_id,
+                message_id: message.message_id,
+            })
+        ));
+        await client.query(
+            `UPDATE sessoes_sos SET ativa = FALSE, encerrada_em = CURRENT_TIMESTAMP WHERE id = $1`,
+            [req.params.sessionId],
+        );
+        return res.json({ success: true });
+    } catch (error) {
+        console.error('Erro ao encerrar localização SOS:', error);
+        return res.status(502).json({ success: false, message: 'Não foi possível encerrar a localização do SOS.' });
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
     createTelegramLink,
     telegramWebhook,
     dispatchTelegramSos,
+    updateTelegramSosLocation,
+    stopTelegramSos,
 };

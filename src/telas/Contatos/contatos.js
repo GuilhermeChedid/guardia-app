@@ -409,10 +409,14 @@ export default function ContatosScreen() {
                 </Modal>
 
                 {/* Modal: Novo Contato */}
-            <Modal visible={isAddVisible} transparent animationType="slide">
+            <Modal visible={isAddVisible} transparent animationType="slide" onRequestClose={() => setAddVisible(false)}>
                 <View style={styles.modalOverlay}>
+                    <Pressable style={styles.modalBackdrop} onPress={() => setAddVisible(false)} />
                     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardAvoid}>
-                        <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
+                        <View
+                            style={[styles.bottomSheet, { backgroundColor: colors.surface }]}
+                            onStartShouldSetResponder={() => true}
+                        >
                             <View style={styles.dragIndicator} />
                             <Text style={[styles.modalTitle, { color: colors.text }]}>Novo contato de confiança</Text>
 
@@ -435,11 +439,11 @@ export default function ContatosScreen() {
 
             {/* Modal: Opções do Contato */}
             <Modal visible={isOptionsVisible} transparent animationType="none" onRequestClose={closeOptions}>
-                <View style={styles.modalOverlay}>
-                    <Pressable style={styles.modalBackdrop} onPress={closeOptions} />
+                <Pressable style={styles.modalOverlay} onPress={closeOptions}>
                     <Animated.View
                         style={[styles.bottomSheet, { backgroundColor: colors.surface, transform: [{ translateY: optionsSheetAnim }] }]}
                         onStartShouldSetResponder={() => true}
+                        onTouchEnd={(event) => event.stopPropagation()}
                     >
                         <View style={styles.dragIndicator} />
 
@@ -478,7 +482,7 @@ export default function ContatosScreen() {
                             <Text style={[styles.optionText, { color: '#C83C59' }]}>Remover contato</Text>
                         </Pressable>
                     </Animated.View>
-                </View>
+                </Pressable>
             </Modal>
 
             {/* Modal: Editar Contato */}
