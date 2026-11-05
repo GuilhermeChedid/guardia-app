@@ -24,11 +24,21 @@ import { useUserProfile } from '../../context/UserProfileContext';
 import api from '../../services/api';
 import { phoneMask } from '../../utils/masks';
 
+const POLICE_CONTACT_STORAGE_KEY = '@guardia/police-contact';
+const DEFAULT_POLICE_CONTACT = {
+    name: 'Polícia',
+    relation: '',
+    phone: '61998171598',
+};
+
 export default function ContatosScreen() {
     const navigation = useNavigation();
     const { colors } = useTheme();
     const { refreshProfile } = useUserProfile();
     const [contacts, setContacts] = useState([]);
+    const [policeContact, setPoliceContact] = useState(DEFAULT_POLICE_CONTACT);
+    const [isPoliceEditVisible, setPoliceEditVisible] = useState(false);
+    const [policePhone, setPolicePhone] = useState(DEFAULT_POLICE_CONTACT.phone);
 
     // Modal states
     const [isAddVisible, setAddVisible] = useState(false);
@@ -55,6 +65,12 @@ export default function ContatosScreen() {
 
     const loadContacts = useCallback(async () => {
         try {
+            const storedPoliceContact = await AsyncStorage.getItem(POLICE_CONTACT_STORAGE_KEY);
+            if (storedPoliceContact) {
+                const savedContact = JSON.parse(storedPoliceContact);
+                setPoliceContact({ ...DEFAULT_POLICE_CONTACT, ...savedContact });
+                setPolicePhone(savedContact.phone || DEFAULT_POLICE_CONTACT.phone);
+            }
             const storedUser = await AsyncStorage.getItem('@guardia/auth_user');
             const user = storedUser ? JSON.parse(storedUser) : null;
             if (!user?.id) return;
@@ -73,6 +89,20 @@ export default function ContatosScreen() {
             showFeedback(error.response?.data?.message || 'Não foi possível carregar os contatos.', 'error');
         }
     }, [showFeedback]);
+
+    const savePoliceContact = async () => {
+        const normalizedPhone = policePhone.replace(/\D/g, '');
+        if (!normalizedPhone) {
+            showFeedback('Informe um número válido para o contato de polícia.', 'error');
+            return;
+        }
+
+        const updatedContact = { ...policeContact, phone: normalizedPhone };
+        await AsyncStorage.setItem(POLICE_CONTACT_STORAGE_KEY, JSON.stringify(updatedContact));
+        setPoliceContact(updatedContact);
+        setPoliceEditVisible(false);
+        showFeedback('Contato de polícia atualizado.');
+    };
 
     useFocusEffect(useCallback(() => {
         loadContacts();
@@ -244,6 +274,39 @@ export default function ContatosScreen() {
         </View>
     );
 
+    const renderPoliceContact = () => (
+        <View style={[styles.contactCard, styles.policeContactCard, { backgroundColor: colors.surface, borderColor: '#C83C59' }]}>
+            <View style={[styles.avatar, { backgroundColor: '#C83C59' }]}>
+                <MaterialCommunityIcons name="police-badge-outline" size={23} color="#FFFFFF" />
+            </View>
+            <View style={styles.contactInfo}>
+                <Text style={[styles.contactName, { color: colors.text }]}>{policeContact.name}</Text>
+                <Text style={[styles.contactDetails, { color: colors.muted }]}>
+                    {phoneMask(policeContact.phone)}
+                </Text>
+            </View>
+            <View style={styles.actionButtons}>
+                <Pressable
+                    style={[styles.iconBtn, { backgroundColor: colors.border }]}
+                    onPress={() => callContact(policeContact)}
+                    accessibilityLabel="Ligar para a polícia"
+                >
+                    <MaterialCommunityIcons name="phone-outline" size={20} color="#C83C59" />
+                </Pressable>
+                <Pressable
+                    style={styles.editPoliceButton}
+                    onPress={() => {
+                        setPolicePhone(policeContact.phone);
+                        setPoliceEditVisible(true);
+                    }}
+                    accessibilityLabel="Editar contato de polícia"
+                >
+                    <MaterialCommunityIcons name="pencil-outline" size={15} color={colors.muted} />
+                </Pressable>
+            </View>
+        </View>
+    );
+
     const renderAlertButton = () => (
         <Animated.View style={{ transform: [{ scale: alertScaleAnim }] }}>
             <Pressable
@@ -292,6 +355,8 @@ export default function ContatosScreen() {
                     </View>
                 )}
 
+                {renderPoliceContact()}
+
                 {/* Lista de Contatos */}
                 <FlatList
                     data={contacts}
@@ -316,7 +381,34 @@ export default function ContatosScreen() {
                 <BottomNav active="Contatos" />
             </View>
 
-            {/* Modal: Novo Contato */}
+                <Modal visible={isPoliceEditVisible} transparent animationType="slide">
+                    <View style={styles.modalOverlay}>
+                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardAvoid}>
+                            <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
+                                <View style={styles.dragIndicator} />
+                                <Text style={[styles.modalTitle, { color: colors.text }]}>Editar contato de polícia</Text>
+                                <TextInput
+                                    value={policePhone}
+                                    onChangeText={(value) => setPolicePhone(phoneMask(value))}
+                                    style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]}
+                                    placeholder="Telefone"
+                                    placeholderTextColor={colors.muted}
+                                    keyboardType="phone-pad"
+                                />
+                                <View style={styles.modalActions}>
+                                    <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setPoliceEditVisible(false)}>
+                                        <Text style={styles.cancelBtnText}>Cancelar</Text>
+                                    </Pressable>
+                                    <Pressable style={styles.primaryBtn} onPress={savePoliceContact}>
+                                        <Text style={styles.primaryBtnText}>Salvar</Text>
+                                    </Pressable>
+                                </View>
+                            </View>
+                        </KeyboardAvoidingView>
+                    </View>
+                </Modal>
+
+                {/* Modal: Novo Contato */}
             <Modal visible={isAddVisible} transparent animationType="slide">
                 <View style={styles.modalOverlay}>
                     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardAvoid}>
@@ -532,6 +624,11 @@ const styles = StyleSheet.create({
         padding: 16,
         marginBottom: 12,
     },
+    policeContactCard: {
+        borderWidth: 1,
+        marginHorizontal: 20,
+        marginBottom: 4,
+    },
     avatar: {
         width: 46,
         height: 46,
@@ -569,6 +666,13 @@ const styles = StyleSheet.create({
         backgroundColor: '#2C2C2E',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    editPoliceButton: {
+        width: 28,
+        height: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: 0.8,
     },
     alertBtn: {
         flexDirection: 'row',

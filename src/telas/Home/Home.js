@@ -17,6 +17,7 @@ const CARDS = [
     { title: 'Guardar Evidência', subtitle: 'Seguro e criptografado', color: '#EB5757', bg: 'rgba(235,87,87,0.12)', icon: 'record-circle' },
     { title: 'Conteúdo Informativo', subtitle: 'Apoio e emergências', color: '#27AE60', bg: 'rgba(39,174,96,0.12)', icon: 'shield-half-full' },
 ];
+const POLICE_CONTACT_STORAGE_KEY = '@guardia/police-contact';
 
 const getInitials = (value = '') => value
     .trim()
@@ -94,7 +95,11 @@ export default function HomeScreen() {
                 accuracy,
             });
 
-            const testPhone = process.env.EXPO_PUBLIC_SOS_TEST_PHONE || '+5561998171598';
+            const storedPoliceContact = await AsyncStorage.getItem(POLICE_CONTACT_STORAGE_KEY);
+            const policeContact = storedPoliceContact ? JSON.parse(storedPoliceContact) : null;
+            const testPhone = policeContact?.phone
+                || process.env.EXPO_PUBLIC_SOS_TEST_PHONE
+                || '+5561998171598';
             const phoneUrl = `tel:${testPhone}`;
             const callOpened = Platform.OS !== 'web' && await Linking.canOpenURL(phoneUrl);
             if (callOpened) {
