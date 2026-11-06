@@ -43,7 +43,7 @@
           }
         }
       ],
-      "expo-build-properties"
+      "./plugins/withDynamicAppIconJvmTarget"
     ],
     "android": {
       "icon": "./src/assets/imagens/icon_guardia.png",
