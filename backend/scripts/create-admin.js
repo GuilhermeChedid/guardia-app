@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const pool = require('../../db');
+const pool = require('../db');
 
 const email = process.env.ADMIN_EMAIL || 'admin@guardia.local';
 const password = process.env.ADMIN_PASSWORD || 'Admin@1234';

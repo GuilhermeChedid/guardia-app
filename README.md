@@ -43,7 +43,7 @@ Aplicativo mobile para apoio e segurança, com fluxo de login, cadastro, emergê
 
 ## Variáveis de ambiente
 
-Edite o arquivo `.env` para configurar a URL da API:
+Edite o arquivo `.env` para configurar a URL da API durante o desenvolvimento:
 
 ```env
 EXPO_PUBLIC_API_URL=http://localhost:3000/api
@@ -51,6 +51,10 @@ TELEGRAM_BOT_TOKEN=token-emitido-pelo-BotFather
 TELEGRAM_BOT_USERNAME=nome_do_bot_sem_@
 EXPO_PUBLIC_SOS_TEST_PHONE=+5561998171598
 ```
+
+Em builds de produção, o app usa `https://guardia-app-tan.vercel.app/api` por
+padrão. Se a API for alterada, defina `EXPO_PUBLIC_API_URL` no ambiente usado
+para gerar o APK antes de executar o build.
 
 ### Telegram no SOS
 
