@@ -27,7 +27,7 @@ import { phoneMask } from '../../utils/masks';
 import { cepMask } from '../../utils/masks';
 import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
 import * as Location from 'expo-location';
-import { setAppIcon } from 'expo-dynamic-app-icon';
+import { setAppIcon } from '../../services/appIcon';
 import {
     disableSosWidget,
     enableSosWidget,
