@@ -159,6 +159,10 @@ const dispatchTelegramSos = async (req, res) => {
             .map((result) => result.value);
         const sent = sentLocations.length;
         if (!sent) {
+            const failureReasons = results
+                .filter((result) => result.status === 'rejected')
+                .map((result) => result.reason?.message || String(result.reason));
+            console.error('Falhas retornadas pelo Telegram:', failureReasons);
             throw new Error('Nenhum alerta foi aceito pelo Telegram.');
         }
         const session = await client.query(
