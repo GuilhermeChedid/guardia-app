@@ -16,9 +16,17 @@ import { ACTIVE_SOS_SESSION_KEY, stopSosTracking } from './sosTracking';
 
 export const SOS_WIDGET_ID = 'guardia-sos';
 export const PENDING_SOS_STORAGE_KEY = '@guardia/pending-sos';
+export const SOS_WIDGET_ENABLED_KEY = '@guardia/sos-widget-enabled';
 
 export function SosBubble({ close }) {
+    const [expanded, setExpanded] = React.useState(false);
+
     const handlePress = async () => {
+        if (!expanded) {
+            setExpanded(true);
+            return;
+        }
+
         const activeSession = await AsyncStorage.getItem(ACTIVE_SOS_SESSION_KEY);
         if (activeSession) {
             try {
@@ -44,9 +52,13 @@ export function SosBubble({ close }) {
     };
 
     return (
-        <Pressable style={styles.bubble} onPress={handlePress} accessibilityLabel="Acionar SOS">
+        <Pressable
+            style={[styles.bubble, expanded && styles.bubbleExpanded]}
+            onPress={handlePress}
+            accessibilityLabel={expanded ? 'Confirmar ativação do SOS' : 'Abrir widget SOS'}
+        >
             <MaterialCommunityIcons name="alarm-light-outline" size={27} color="#FFFFFF" />
-            <Text style={styles.label}>SOS</Text>
+            {expanded ? <Text style={styles.label}>TOQUE NOVAMENTE</Text> : null}
         </Pressable>
     );
 }
@@ -93,12 +105,16 @@ const styles = StyleSheet.create({
         width: 68,
         height: 68,
         borderRadius: 34,
-        backgroundColor: '#C83C59',
+        backgroundColor: 'rgba(200, 60, 89, 0.72)',
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 2,
         borderColor: '#FFFFFF',
         elevation: 8,
+    },
+    bubbleExpanded: {
+        width: 118,
+        borderRadius: 34,
     },
     label: {
         color: '#FFFFFF',

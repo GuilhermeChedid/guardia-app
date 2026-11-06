@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
 import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
 import { startSosTracking, stopSosTracking } from '../../services/sosTracking';
+import { PENDING_SOS_STORAGE_KEY } from '../../services/sosWidget';
 
 const CARDS = [
     { title: 'Guardar Evidência', subtitle: 'Seguro e criptografado', color: '#EB5757', bg: 'rgba(235,87,87,0.12)', icon: 'record-circle' },
@@ -173,6 +174,29 @@ export default function HomeScreen() {
         React.useCallback(() => {
             refreshProfile();
         }, [refreshProfile])
+    );
+
+    useFocusEffect(
+        React.useCallback(() => {
+            let active = true;
+
+            AsyncStorage.getItem(PENDING_SOS_STORAGE_KEY)
+                .then(async (pending) => {
+                    if (pending !== 'true' || !active) return;
+                    await AsyncStorage.removeItem(PENDING_SOS_STORAGE_KEY);
+                    if (active && !route.params?.startSos) {
+                        setSosDispatched(false);
+                        setSosCountdown(5);
+                    }
+                })
+                .catch((error) => {
+                    console.error('Erro ao recuperar acionamento do widget SOS:', error);
+                });
+
+            return () => {
+                active = false;
+            };
+        }, [route.params?.startSos])
     );
 
     useEffect(() => {

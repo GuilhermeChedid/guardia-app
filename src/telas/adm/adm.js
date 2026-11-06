@@ -20,6 +20,7 @@ import { POST_CATEGORIES } from '../../constants/posts';
 import { usePosts } from '../../context/PostsContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
+import { formatDisplayName } from '../../utils/nameValidation';
 
 const logoGuardia = require('../../assets/imagens/logo_guardia.png');
 
@@ -33,7 +34,7 @@ const getInitials = (value = '') => value
 
 export default function AdminDashboardScreen() {
     const navigation = useNavigation();
-    const { posts, updatePost, addPost, deletePost, refreshPosts } = usePosts();
+    const { posts, updatePost, addPost, deletePost, refreshPosts, uploadPostImage } = usePosts();
     const [isAuthorized, setIsAuthorized] = useState(false);
 
     // Estados de Navegação Interna
@@ -154,13 +155,16 @@ export default function AdminDashboardScreen() {
 
         const paragraphs = postContent.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
         try {
+            const image = postImage && postImage !== selectedPost.image
+                ? await uploadPostImage(postImage, adminId)
+                : selectedPost.image;
             await updatePost(selectedPost.id, {
                 title: postTitle.trim() || selectedPost.title,
                 badge: postCategory,
                 badgeClass: postCategory === 'Direitos' ? 'blue' : 'pink',
                 excerpt: (paragraphs[0] || selectedPost.excerpt).slice(0, 140),
                 paragraphs: paragraphs.length > 0 ? paragraphs : selectedPost.paragraphs,
-                image: postImage || selectedPost.image,
+                image,
             });
             setSubView(null);
             showFeedback('Post editado com sucesso!');
@@ -187,6 +191,7 @@ export default function AdminDashboardScreen() {
         }
 
         try {
+            const image = newPostImage ? await uploadPostImage(newPostImage, adminId) : null;
             await addPost({
                 id: Date.now(),
                 badge: newPostCategory,
@@ -194,7 +199,7 @@ export default function AdminDashboardScreen() {
                 time: 'Agora',
                 title,
                 excerpt: paragraphs[0].slice(0, 140),
-                image: newPostImage || posts[0]?.image,
+                image,
                 paragraphs,
                 likes: 0,
                 isLiked: false,
@@ -367,7 +372,7 @@ export default function AdminDashboardScreen() {
                         <Text style={styles.userAvatarText}>{user.nome.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</Text>
                     </View>
                     <View style={styles.userInfoBox}>
-                        <Text style={styles.userName}>{user.nome}</Text>
+                        <Text style={styles.userName}>{formatDisplayName(user.nome)}</Text>
                         <Text style={styles.userEmail}>{user.email}</Text>
                         <Text style={styles.userMeta}>{user.cidade || 'Cidade não informada'} · {new Date(user.criado_em).toLocaleDateString('pt-BR')}</Text>
                     </View>
@@ -676,7 +681,7 @@ export default function AdminDashboardScreen() {
                                     <Text style={{ color: '#FFF', fontSize: 12, fontWeight: 'bold' }}>{getInitials(comment.author)}</Text>
                                 )}
                             </View>
-                            <Text style={styles.commentAuthorName}>{comment.author}</Text>
+                            <Text style={styles.commentAuthorName}>{formatDisplayName(comment.author)}</Text>
                         </View>
                         <View style={styles.commentHeaderActions}>
                             <Text style={styles.commentTime}>{comment.time}</Text>
@@ -710,12 +715,13 @@ export default function AdminDashboardScreen() {
                 </View>
             )}
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
                 style={styles.keyboardView}
             >
                 <ScrollView
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollGrow}
+                    scrollEnabled
                     showsVerticalScrollIndicator={true}
                     keyboardShouldPersistTaps="handled"
                     automaticallyAdjustKeyboardInsets
@@ -823,7 +829,7 @@ export default function AdminDashboardScreen() {
                         </View>
                         <Text style={styles.deleteDialogTitle}>Excluir usuário?</Text>
                         <Text style={styles.deleteDialogText}>
-                            Tem certeza que deseja excluir <Text style={{ fontWeight: '700', color: '#EAEAEA' }}>{userDeleteTarget?.nome}</Text>? Todos os dados associados serão removidos permanentemente.
+                            Tem certeza que deseja excluir <Text style={{ fontWeight: '700', color: '#EAEAEA' }}>{formatDisplayName(userDeleteTarget?.nome)}</Text>? Todos os dados associados serão removidos permanentemente.
                         </Text>
                         <View style={styles.deleteDialogActions}>
                             <Pressable style={styles.deleteCancelBtn} onPress={() => setUserDeleteVisible(false)}>
@@ -879,7 +885,7 @@ const styles = StyleSheet.create({
     },
     keyboardView: { flex: 1 },
     scrollGrow: { flexGrow: 1 },
-    appContainer: { flex: 1, backgroundColor: '#0B0B0C' },
+    appContainer: { width: '100%', minHeight: '100%', backgroundColor: '#0B0B0C' },
     scrollView: { flex: 1 },
     topSection: {
         backgroundColor: '#4A1224',

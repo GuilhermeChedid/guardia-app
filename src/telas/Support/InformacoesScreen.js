@@ -19,6 +19,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { POST_CATEGORIES } from '../../constants/posts';
 import { usePosts } from '../../context/PostsContext';
 import { useUserProfile } from '../../context/UserProfileContext';
+import { formatDisplayName } from '../../utils/nameValidation';
 
 const logoGuardia = require('../../assets/imagens/logo_guardia.png');
 
@@ -365,7 +366,7 @@ export default function InformacoesScreen() {
                                         </View>
                                         <View style={[styles.commentBubble, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                             <View style={styles.commentHeader}>
-                                                <Text style={[styles.commentAuthor, { color: colors.text }]}>{comment.author}</Text>
+                                                <Text style={[styles.commentAuthor, { color: colors.text }]}>{formatDisplayName(comment.author)}</Text>
                                                 <Text style={[styles.commentTime, { color: colors.muted }]}>{comment.time}</Text>
                                             </View>
                                             <Text style={[styles.commentText, { color: colors.text }]}>{comment.text}</Text>

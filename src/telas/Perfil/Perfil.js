@@ -26,6 +26,13 @@ import api from '../../services/api';
 import { phoneMask } from '../../utils/masks';
 import { cepMask } from '../../utils/masks';
 import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
+import * as Location from 'expo-location';
+import { setAppIcon } from 'expo-dynamic-app-icon';
+import {
+    disableSosWidget,
+    enableSosWidget,
+    SOS_WIDGET_ENABLED_KEY,
+} from '../../services/sosWidget';
 
 const passwordRules = [
     { label: 'Mínimo 8 caracteres', test: (password) => password.length >= 8 },
@@ -65,6 +72,70 @@ export default function PerfilScreen() {
             }
         }
     }, []);
+
+    const handleWidgetToggle = async (enabled) => {
+        if (isUpdatingWidget) return;
+
+        if (!enabled) {
+            disableSosWidget();
+            await AsyncStorage.setItem(SOS_WIDGET_ENABLED_KEY, 'false');
+            setIsWidgetEnabled(false);
+            setFeedback({ type: 'success', message: 'Widget SOS desativado.' });
+            return;
+        }
+
+        try {
+            setIsUpdatingWidget(true);
+            const permission = await Location.requestBackgroundPermissionsAsync();
+            if (permission.status !== 'granted') {
+                setFeedback({
+                    type: 'error',
+                    message: 'Permita a localização em segundo plano para ativar o widget SOS.',
+                });
+                return;
+            }
+
+            const result = await enableSosWidget();
+            if (!result.enabled) {
+                setFeedback({
+                    type: 'error',
+                    message: 'Permita a exibição sobre outros aplicativos para ativar o widget SOS.',
+                });
+                return;
+            }
+
+            await AsyncStorage.setItem(SOS_WIDGET_ENABLED_KEY, 'true');
+            setIsWidgetEnabled(true);
+            setFeedback({ type: 'success', message: 'Widget SOS ativado.' });
+        } catch (error) {
+            console.error('Erro ao ativar widget SOS:', error);
+            setFeedback({ type: 'error', message: 'Não foi possível ativar o widget SOS.' });
+        } finally {
+            setIsUpdatingWidget(false);
+        }
+    };
+
+    const handleDisguiseChange = async (optionId) => {
+        const iconName = {
+            'shield-check': 'guardia',
+            calculator: 'calculator',
+            'book-open-page-variant': 'guide',
+            'folder-heart': 'files',
+        }[optionId];
+
+        setSelectedDisguise(optionId);
+        try {
+            if (Platform.OS !== 'web') {
+                await setAppIcon(iconName);
+            }
+        } catch (error) {
+            console.error('Erro ao alterar ícone do aplicativo:', error);
+            setFeedback({
+                type: 'error',
+                message: 'Não foi possível alterar o ícone neste dispositivo.',
+            });
+        }
+    };
 
     const inputThemeStyle = {
         backgroundColor: colors.input,
@@ -108,6 +179,8 @@ export default function PerfilScreen() {
     const [selectedDisguise, setSelectedDisguise] = useState('shield-check');
     const [widgetName, setWidgetName] = useState('Família');
     const [widgetPhoto, setWidgetPhoto] = useState(null);
+    const [isWidgetEnabled, setIsWidgetEnabled] = useState(false);
+    const [isUpdatingWidget, setIsUpdatingWidget] = useState(false);
     const [isSavingCustomization, setIsSavingCustomization] = useState(false);
 
     // PIN states
@@ -144,13 +217,19 @@ export default function PerfilScreen() {
 
         const loadCustomization = async () => {
             try {
-                const saved = await AsyncStorage.getItem('@guardia/settings_customization');
-                if (!saved || !isMounted) return;
+                const [saved, savedWidgetState] = await Promise.all([
+                    AsyncStorage.getItem('@guardia/settings_customization'),
+                    AsyncStorage.getItem(SOS_WIDGET_ENABLED_KEY),
+                ]);
+                if (!isMounted) return;
 
-                const customization = JSON.parse(saved);
-                if (customization.disguise) setSelectedDisguise(customization.disguise);
-                if (customization.widgetName) setWidgetName(customization.widgetName);
-                if (customization.widgetPhoto) setWidgetPhoto(customization.widgetPhoto);
+                if (saved) {
+                    const customization = JSON.parse(saved);
+                    if (customization.disguise) setSelectedDisguise(customization.disguise);
+                    if (customization.widgetName) setWidgetName(customization.widgetName);
+                    if (customization.widgetPhoto) setWidgetPhoto(customization.widgetPhoto);
+                }
+                setIsWidgetEnabled(savedWidgetState === 'true');
             } catch (error) {
                 console.error('Erro ao carregar personalização:', error);
             }
@@ -203,6 +282,7 @@ export default function PerfilScreen() {
                     disguise: selectedDisguise,
                     widgetName,
                     widgetPhoto,
+                    widgetEnabled: isWidgetEnabled,
                 }),
             );
             setFeedback({
@@ -516,6 +596,22 @@ const redefinirPinRecuperado = async () => {
         setVerificationCode('');
     };
 
+    const handleCancelProfileEdit = () => {
+        setName(profile.name);
+        setEmail(profile.email);
+        setPhone(profile.phone);
+        setAddress(profile.street);
+        setPostalCode(profile.postalCode);
+        setAddressNumber(profile.addressNumber);
+        setAddressComplement(profile.addressComplement);
+        setNeighborhood(profile.neighborhood);
+        setCity(profile.city);
+        setState(profile.state);
+        setMaritalStatus(profile.maritalStatus);
+        setCpf(profile.cpf);
+        setScreen('main');
+    };
+
     const handleSaveProfile = async () => {
         try {
             const storedUser = await AsyncStorage.getItem('@guardia/auth_user');
@@ -685,6 +781,25 @@ const redefinirPinRecuperado = async () => {
                                     <Text style={styles.largeAvatarText}>{getInitials(profile.name)}</Text>
                                 )}
                             </View>
+
+                            <View style={[styles.settingsRow, styles.widgetToggleRow]}>
+                                <View style={[styles.settingIconBox, { backgroundColor: colors.surfaceStrong }]}>
+                                    <MaterialCommunityIcons name="alarm-light-outline" size={20} color="#C83C59" />
+                                </View>
+                                <View style={styles.settingTextWrap}>
+                                    <Text style={[styles.settingTitle, { color: colors.text }]}>Ativar widget SOS</Text>
+                                    <Text style={[styles.settingSubtitle, { color: colors.muted }]}>
+                                        Exibir o botão flutuante sobre outros aplicativos
+                                    </Text>
+                                </View>
+                                <Switch
+                                    value={isWidgetEnabled}
+                                    onValueChange={handleWidgetToggle}
+                                    disabled={isUpdatingWidget}
+                                    trackColor={{ false: '#374151', true: '#C83C59' }}
+                                    thumbColor="#FFFFFF"
+                                />
+                            </View>
                             <Text style={[styles.userName, { color: colors.text }]}>{profile.name}</Text>
                             <Text style={[styles.userEmail, { color: colors.muted }]}>{profile.email}</Text>
                             <Text style={[styles.userPhone, { color: colors.muted }]}>{phoneMask(profile.phone)}</Text>
@@ -846,15 +961,24 @@ const redefinirPinRecuperado = async () => {
                                 <Text style={styles.inputSubHint}>O CPF não pode ser alterado</Text>
                             </View>
 
-                            <Pressable
-                                style={styles.primaryButton}
-                                onPress={handleSaveProfile}
-                                disabled={isSavingProfile}
-                            >
-                                <Text style={styles.primaryButtonText}>
-                                    {isSavingProfile ? 'Salvando...' : 'Salvar alterações'}
-                                </Text>
-                            </Pressable>
+                            <View style={styles.profileEditActions}>
+                                <Pressable
+                                    style={styles.secondaryButton}
+                                    onPress={handleCancelProfileEdit}
+                                    disabled={isSavingProfile}
+                                >
+                                    <Text style={styles.secondaryButtonText}>Cancelar</Text>
+                                </Pressable>
+                                <Pressable
+                                    style={[styles.primaryButton, styles.profileSaveButton]}
+                                    onPress={handleSaveProfile}
+                                    disabled={isSavingProfile}
+                                >
+                                    <Text style={styles.primaryButtonText}>
+                                        {isSavingProfile ? 'Salvando...' : 'Salvar alterações'}
+                                    </Text>
+                                </Pressable>
+                            </View>
                         </ScrollView>
                     </View>
                 )}
@@ -921,7 +1045,7 @@ const redefinirPinRecuperado = async () => {
                                                 key={option.id}
                                                 accessibilityRole="button"
                                                 accessibilityState={{ selected }}
-                                                onPress={() => setSelectedDisguise(option.id)}
+                                                onPress={() => handleDisguiseChange(option.id)}
                                                 style={[
                                                     styles.disguiseOption,
                                                     { backgroundColor: colors.surfaceStrong, borderColor: colors.border },
@@ -950,7 +1074,7 @@ const redefinirPinRecuperado = async () => {
                                 </View>
                             </View>
                             <Text style={styles.settingsHint}>
-                                A escolha fica salva neste dispositivo. A troca real do ícone na tela inicial depende da configuração nativa do aplicativo.
+                                A escolha fica salva neste dispositivo e altera o ícone real após a instalação de um build nativo.
                             </Text>
 
                             {/* Widget SOS */}
@@ -971,7 +1095,7 @@ const redefinirPinRecuperado = async () => {
                                     <View style={styles.widgetPreviewDescription}>
                                         <Text style={[styles.settingTitle, { color: colors.text }]}>SOS camuflado</Text>
                                         <Text style={[styles.widgetDescriptionText, { color: colors.muted }]}>
-                                            O widget parece um atalho comum. Pressione o widget para iniciar o SOS.
+                                            O widget fica sobre outros aplicativos e pode iniciar o SOS sem abrir a tela principal.
                                         </Text>
                                         <Pressable
                                             style={[styles.choosePhotoButton, { backgroundColor: colors.surfaceStrong, borderColor: colors.border }]}
@@ -1022,7 +1146,7 @@ const redefinirPinRecuperado = async () => {
                                 </Pressable>
                             </View>
                             <Text style={styles.settingsHint}>
-                                Para adicionar o widget à tela inicial, mantenha pressionado um espaço vazio e procure por Guardiã nos widgets. A integração do widget precisa estar implementada no aplicativo.
+                                O widget flutuante funciona no Android após a autorização de sobreposição. Toque uma vez para expandir e novamente para confirmar o SOS.
                             </Text>
 
                             {/* Segurança */}
@@ -1771,7 +1895,7 @@ const styles = StyleSheet.create({
     },
     formContent: {
         padding: 20,
-        paddingBottom: 100,
+        paddingBottom: 280,
     },
     avatarCenterWrap: {
         alignItems: 'center',
@@ -1937,9 +2061,31 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '700',
     },
+    profileEditActions: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 10,
+    },
+    secondaryButton: {
+        flex: 1,
+        height: 48,
+        backgroundColor: '#2C2C2E',
+        borderRadius: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    secondaryButtonText: {
+        color: '#D1D5DB',
+        fontSize: 15,
+        fontWeight: '700',
+    },
+    profileSaveButton: {
+        flex: 1,
+        marginTop: 0,
+    },
     settingsContent: {
         padding: 20,
-        paddingBottom: 100,
+        paddingBottom: 280,
     },
     sectionHeader: {
         color: '#94A3B8',

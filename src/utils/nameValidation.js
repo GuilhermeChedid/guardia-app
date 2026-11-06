@@ -31,6 +31,14 @@ const normalizeName = (value = '') =>
         .toLowerCase()
         .trim();
 
+export const formatDisplayName = (value = '') =>
+    String(value)
+        .trim()
+        .toLocaleLowerCase('pt-BR')
+        .replace(/(^|[\s'-])([a-zà-ÿ])/g, (_, separator, initial) =>
+            `${separator}${initial.toLocaleUpperCase('pt-BR')}`
+        );
+
 export const validateFullName = (value = '') => {
     const name = value.trim().replace(/\s+/g, ' ');
     const parts = name.split(' ');

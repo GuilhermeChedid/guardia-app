@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 import { getAssetUrl } from '../services/api';
 import { POSTS } from '../constants/posts';
+import { formatDisplayName } from '../utils/nameValidation';
 
 const PostsContext = createContext(null);
 
@@ -26,7 +27,7 @@ const formatCommentTime = (value) => {
 const getSafePostImage = (post) => {
     const image = post.imagem_url;
     if (typeof image === 'string' && image.trim() && !image.startsWith('blob:')) {
-        return image;
+        return getAssetUrl(image);
     }
     return POSTS.find((item) => item.badge === post.categoria)?.image || POSTS[0].image;
 };
@@ -45,6 +46,7 @@ const mapPost = (post) => ({
         .filter((comment) => comment.id)
         .map((comment) => ({
             ...comment,
+            author: formatDisplayName(comment.author || ''),
             avatarImage: getAssetUrl(comment.avatarImage || ''),
             time: formatCommentTime(comment.time),
         })),
@@ -89,6 +91,20 @@ export function PostsProvider({ children }) {
         await refreshPosts();
     };
 
+    const uploadPostImage = async (uri, adminId) => {
+        const formData = new FormData();
+        formData.append('admin_id', adminId);
+        formData.append('image', {
+            uri,
+            name: `post-${Date.now()}.jpg`,
+            type: 'image/jpeg',
+        });
+        const response = await api.post('/posts/upload-image', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return getAssetUrl(response.data.imageUrl);
+    };
+
     const addPost = async (post) => {
         const currentUser = await getCurrentUser();
         if (!currentUser?.id) throw new Error('Sessão de usuário não encontrada.');
@@ -117,7 +133,7 @@ export function PostsProvider({ children }) {
     };
 
     const value = useMemo(() => ({
-        posts, updatePost, addPost, deletePost, addComment, refreshPosts,
+        posts, updatePost, addPost, deletePost, addComment, refreshPosts, uploadPostImage,
     }), [posts, getCurrentUser, refreshPosts]);
 
     return <PostsContext.Provider value={value}>{children}</PostsContext.Provider>;

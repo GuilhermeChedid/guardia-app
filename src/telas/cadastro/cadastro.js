@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
     },
     content: {
         flexGrow: 1,
-        paddingBottom: 100,
+        paddingBottom: 280,
     },
     header: {
         backgroundColor: '#5B1B2C',

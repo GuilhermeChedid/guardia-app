@@ -25,6 +25,8 @@
     "expo-asset": "~58.0.19",
     "expo-build-properties": "~58.0.12",
     "expo-document-picker": "~58.0.4",
+    "expo-draw-over-apps": "^57.0.0",
+    "expo-dynamic-app-icon": "^1.2.0",
     "expo-font": "~58.0.11",
     "expo-image-picker": "~58.0.10",
     "expo-linear-gradient": "~58.0.3",

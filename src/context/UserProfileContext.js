@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 import { getAssetUrl } from '../services/api';
+import { formatDisplayName } from '../utils/nameValidation';
 
 const PROFILE_STORAGE_KEY = '@guardia/profile';
 const DEFAULT_PROFILE = {
@@ -51,7 +52,7 @@ export function UserProfileProvider({ children }) {
 
             setProfile({
                 ...DEFAULT_PROFILE,
-                name: data.nome || '',
+                name: formatDisplayName(data.nome || ''),
                 email: data.email || '',
                 phone: data.telefone || '',
                 photoUrl: getAssetUrl(data.url_foto_perfil || ''),

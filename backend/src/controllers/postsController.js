@@ -1,8 +1,34 @@
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 const pool = require('../../db');
+
+const postUploadDirectory = path.resolve(__dirname, '../../uploads/posts');
+fs.mkdirSync(postUploadDirectory, { recursive: true });
 
 const isAdmin = async (client, usuarioId) => {
     const result = await client.query('SELECT is_admin FROM usuarios WHERE id = $1', [usuarioId]);
     return result.rows[0]?.is_admin === true;
+};
+
+const uploadPostImage = async (req, res) => {
+    try {
+        if (!(await isAdmin(pool, req.body.admin_id))) {
+            return res.status(403).json({ success: false, message: 'Apenas administradores podem enviar imagens.' });
+        }
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'Selecione uma imagem.' });
+        }
+
+        const extension = path.extname(req.file.originalname).toLowerCase();
+        const filename = `${crypto.randomUUID()}${extension}`;
+        const filePath = path.join(postUploadDirectory, filename);
+        fs.writeFileSync(filePath, req.file.buffer);
+        return res.status(201).json({ success: true, imageUrl: `/uploads/posts/${filename}` });
+    } catch (error) {
+        console.error('Erro ao enviar imagem do post:', error);
+        return res.status(500).json({ success: false, message: 'Não foi possível enviar a imagem.' });
+    }
 };
 
 const listPosts = async (req, res) => {
@@ -111,4 +137,4 @@ const addComment = async (req, res) => {
     } finally { client.release(); }
 };
 
-module.exports = { listPosts, createPost, updatePost, deletePost, toggleLike, addComment };
+module.exports = { listPosts, createPost, updatePost, deletePost, toggleLike, addComment, uploadPostImage };

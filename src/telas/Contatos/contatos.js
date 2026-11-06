@@ -23,6 +23,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useUserProfile } from '../../context/UserProfileContext';
 import api from '../../services/api';
 import { phoneMask } from '../../utils/masks';
+import { formatDisplayName } from '../../utils/nameValidation';
 
 const POLICE_CONTACT_STORAGE_KEY = '@guardia/police-contact';
 const DEFAULT_POLICE_CONTACT = {
@@ -79,7 +80,7 @@ export default function ContatosScreen() {
             setContacts(response.data.contacts.map((contact) => ({
                 ...contact,
                 initials: contact.nome.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase(),
-                name: contact.nome,
+                name: formatDisplayName(contact.nome),
                 relation: contact.relacao,
                 phone: contact.telefone,
                 color: '#C83C59',
@@ -127,7 +128,7 @@ export default function ContatosScreen() {
             const mapped = {
                 ...contact,
                 initials: contact.nome.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase(),
-                name: contact.nome, relation: contact.relacao, phone: contact.telefone, color: '#C83C59',
+                name: formatDisplayName(contact.nome), relation: contact.relacao, phone: contact.telefone, color: '#C83C59',
             };
             setContacts((current) => isEdit
                 ? current.map((item) => item.id === mapped.id ? mapped : item)
@@ -265,7 +266,7 @@ export default function ContatosScreen() {
                     onPress={() => callContact(item)}
                     accessibilityLabel={`Ligar para ${item.name}`}
                 >
-                    <MaterialCommunityIcons name="phone-outline" size={20} color="#C83C59" />
+                    <MaterialCommunityIcons name="phone-outline" size={20} color="#21864A" />
                 </Pressable>
                 <Pressable style={[styles.iconBtn, { backgroundColor: colors.border }]} onPress={() => openOptions(item)}>
                     <MaterialCommunityIcons name="dots-horizontal" size={20} color="#8E8E93" />
@@ -291,7 +292,7 @@ export default function ContatosScreen() {
                     onPress={() => callContact(policeContact)}
                     accessibilityLabel="Ligar para a polícia"
                 >
-                    <MaterialCommunityIcons name="phone-outline" size={20} color="#C83C59" />
+                    <MaterialCommunityIcons name="phone-outline" size={20} color="#21864A" />
                 </Pressable>
                 <Pressable
                     style={styles.editPoliceButton}
@@ -383,7 +384,7 @@ export default function ContatosScreen() {
 
                 <Modal visible={isPoliceEditVisible} transparent animationType="slide">
                     <View style={styles.modalOverlay}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardAvoid}>
+                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined} style={styles.keyboardAvoid}>
                             <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
                                 <View style={styles.dragIndicator} />
                                 <Text style={[styles.modalTitle, { color: colors.text }]}>Editar contato de polícia</Text>
@@ -412,7 +413,7 @@ export default function ContatosScreen() {
             <Modal visible={isAddVisible} transparent animationType="slide" onRequestClose={() => setAddVisible(false)}>
                 <View style={styles.modalOverlay}>
                     <Pressable style={styles.modalBackdrop} onPress={() => setAddVisible(false)} />
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardAvoid}>
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined} style={styles.keyboardAvoid}>
                         <View
                             style={[styles.bottomSheet, { backgroundColor: colors.surface }]}
                             onStartShouldSetResponder={() => true}
@@ -488,7 +489,7 @@ export default function ContatosScreen() {
             {/* Modal: Editar Contato */}
             <Modal visible={isEditVisible} transparent animationType="slide">
                 <View style={styles.modalOverlay}>
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardAvoid}>
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined} style={styles.keyboardAvoid}>
                         <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
                             <View style={styles.dragIndicator} />
                             <Text style={[styles.modalTitle, { color: colors.text }]}>Editar contato</Text>

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ITEMS = [
     { key: 'Home', label: 'Inicio', icon: 'home' },
@@ -15,9 +16,17 @@ const ITEMS = [
 export default function BottomNav({ active }) {
     const navigation = useNavigation();
     const { colors } = useTheme();
+    const insets = useSafeAreaInsets();
 
     return (
-        <View style={[styles.bottomNav, { backgroundColor: colors.surfaceStrong, borderTopColor: colors.border }]}>
+        <View style={[
+            styles.bottomNav,
+            {
+                backgroundColor: colors.surfaceStrong,
+                borderTopColor: colors.border,
+                paddingBottom: 18 + insets.bottom,
+            },
+        ]}>
             {ITEMS.map((item) => {
                 const isActive = item.key === active;
                 return (

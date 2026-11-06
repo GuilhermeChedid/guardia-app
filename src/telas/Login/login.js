@@ -352,7 +352,7 @@ export default function LoginScreen() {
         const renderLogin = () => (
         <>
             <Text style={[styles.welcomeTitle, { color: colors.text }]}>
-                Bem-vinda de volta
+                Bem-vinda(o) de volta
             </Text>
 
             <Text
@@ -771,10 +771,7 @@ export default function LoginScreen() {
             />
 
             <KeyboardAvoidingView
-                behavior={
-                    Platform.OS === 'ios' ? 'padding' : undefined
-                }
-
+                behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
                 style={styles.keyboardView}
             >
                 <ScrollView

@@ -56,7 +56,7 @@ const createTelegramLink = async (req, res) => {
         const linkToken = crypto.randomBytes(24).toString('hex');
         const result = await client.query(
             `UPDATE contatos_confianca
-             SET telegram_link_token = $1
+             SET telegram_chat_id = NULL, telegram_link_token = $1
              WHERE id = $2 AND usuario_id = $3
              RETURNING id`,
             [linkToken, req.params.contactId, req.params.usuarioId],
@@ -84,7 +84,7 @@ const createTelegramLink = async (req, res) => {
 const telegramWebhook = async (req, res) => {
     const message = req.body?.message;
     const text = message?.text || '';
-    const match = text.match(/^\/start(?:\s+([A-Za-z0-9_-]+))?$/);
+    const match = text.match(/^\/start(?:@[A-Za-z0-9_]+)?(?:\s+([A-Za-z0-9_-]+))?$/i);
     if (!message?.chat?.id || !match?.[1]) {
         return res.sendStatus(200);
     }
@@ -95,14 +95,14 @@ const telegramWebhook = async (req, res) => {
             `UPDATE contatos_confianca
              SET telegram_chat_id = $1, telegram_link_token = NULL
              WHERE telegram_link_token = $2
-             RETURNING nome`,
+             RETURNING id`,
             [String(message.chat.id), match[1]],
         );
         if (result.rows.length) {
             const { token } = requireBotConfig();
             await telegramRequest(token, 'sendMessage', {
                 chat_id: message.chat.id,
-                text: `Vínculo concluído. Você receberá os alertas SOS de ${result.rows[0].nome}.`,
+                text: 'Vínculo concluído com sucesso.',
             });
         }
         return res.sendStatus(200);

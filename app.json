@@ -1,10 +1,32 @@
 {
   "expo": {
+    "icon": "./src/assets/imagens/icon_guardia.png",
     "plugins": [
       "expo-font",
       "expo-asset",
       "expo-status-bar",
       "expo-sharing",
+      [
+        "expo-dynamic-app-icon",
+        {
+          "guardia": {
+            "image": "./src/assets/imagens/icon_guardia.png",
+            "prerendered": true
+          },
+          "calculator": {
+            "image": "./src/assets/imagens/icon_calculator.png",
+            "prerendered": true
+          },
+          "guide": {
+            "image": "./src/assets/imagens/icon_guide.png",
+            "prerendered": true
+          },
+          "files": {
+            "image": "./src/assets/imagens/icon_files.png",
+            "prerendered": true
+          }
+        }
+      ],
       [
         "expo-location",
         {
@@ -24,6 +46,11 @@
       "expo-build-properties"
     ],
     "android": {
+      "icon": "./src/assets/imagens/icon_guardia.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/imagens/icon_guardia.png",
+        "backgroundColor": "#3B1D4B"
+      },
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.guilhermechedid.guardiaapp"
     },
