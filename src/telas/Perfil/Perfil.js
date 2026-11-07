@@ -42,6 +42,27 @@ const passwordRules = [
     { label: '1 caractere especial (!@#$%&*_.-)', test: (password) => /[!@#$%&*_.-]/.test(password) },
 ];
 
+function PinRequirements({ value }) {
+    const digits = /^\d{4}$/.test(value);
+    return (
+        <View style={styles.pinRequirements}>
+            {[0, 1, 2, 3].map((index) => (
+                <View
+                    key={index}
+                    style={[
+                        styles.pinRequirementDot,
+                        value.length > index && styles.pinRequirementDotFilled,
+                        digits && styles.pinRequirementDotValid,
+                    ]}
+                />
+            ))}
+            <Text style={styles.pinRequirementText}>
+                {digits ? 'PIN válido' : `${value.length}/4 dígitos`}
+            </Text>
+        </View>
+    );
+}
+
 export default function PerfilScreen() {
     const navigation = useNavigation();
     const { isLight, colors, toggleTheme } = useTheme();
@@ -124,18 +145,22 @@ export default function PerfilScreen() {
     };
 
     const handleDisguiseChange = async (optionId) => {
+        setSelectedDisguise(optionId);
+    };
+
+    const handleSaveDisguise = async () => {
         const iconName = {
             'shield-check': 'guardia',
             calculator: 'calculator',
             'book-open-page-variant': 'guide',
             'folder-heart': 'files',
-        }[optionId];
+        }[selectedDisguise];
 
-        setSelectedDisguise(optionId);
         try {
             if (Platform.OS !== 'web') {
                 await setAppIcon(iconName);
             }
+            await handleSaveCustomization();
         } catch (error) {
             console.error('Erro ao alterar ícone do aplicativo:', error);
             setFeedback({
@@ -1065,6 +1090,15 @@ const redefinirPinRecuperado = async () => {
                                     })}
                                 </View>
                             </View>
+                            <Pressable
+                                style={[styles.primaryButton, styles.disguiseSaveButton]}
+                                onPress={handleSaveDisguise}
+                                disabled={isSavingCustomization}
+                            >
+                                <Text style={styles.primaryButtonText}>
+                                    {isSavingCustomization ? 'Salvando...' : 'Salvar ícone'}
+                                </Text>
+                            </Pressable>
                             <Text style={styles.settingsHint}>
                                 A escolha fica salva neste dispositivo e altera o ícone real após a instalação de um build nativo.
                             </Text>
@@ -1424,7 +1458,7 @@ const redefinirPinRecuperado = async () => {
                                                         keyboardType="number-pad"
                                                         maxLength={4}
                                                         value={currentPin}
-                                                        onChangeText={setCurrentPin}
+                                                        onChangeText={(value) => setCurrentPin(value.replace(/\D/g, '').slice(0, 4))}
                                                     />
                                                     <Pressable
                                                         style={styles.pinEyeButton}
@@ -1434,6 +1468,7 @@ const redefinirPinRecuperado = async () => {
                                                         <MaterialCommunityIcons name={showCurrentPin ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
                                                     </Pressable>
                                                 </View>
+                                                <PinRequirements value={currentPin} />
                                                 <View style={[styles.pinInputWrap, inputThemeStyle]}>
                                                     <TextInput
                                                         style={[styles.subTextInput, styles.pinTextInput, inputThemeStyle]}
@@ -1443,7 +1478,7 @@ const redefinirPinRecuperado = async () => {
                                                         keyboardType="number-pad"
                                                         maxLength={4}
                                                         value={newPin}
-                                                        onChangeText={setNewPin}
+                                                        onChangeText={(value) => setNewPin(value.replace(/\D/g, '').slice(0, 4))}
                                                     />
                                                     <Pressable
                                                         style={styles.pinEyeButton}
@@ -1453,6 +1488,7 @@ const redefinirPinRecuperado = async () => {
                                                         <MaterialCommunityIcons name={showNewPin ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
                                                     </Pressable>
                                                 </View>
+                                                <PinRequirements value={newPin} />
                                                 <View style={[styles.pinInputWrap, inputThemeStyle]}>
                                                     <TextInput
                                                         style={[styles.subTextInput, styles.pinTextInput, inputThemeStyle]}
@@ -1462,7 +1498,7 @@ const redefinirPinRecuperado = async () => {
                                                         keyboardType="number-pad"
                                                         maxLength={4}
                                                         value={confirmPin}
-                                                        onChangeText={setConfirmPin}
+                                                        onChangeText={(value) => setConfirmPin(value.replace(/\D/g, '').slice(0, 4))}
                                                     />
                                                     <Pressable
                                                         style={styles.pinEyeButton}
@@ -1472,6 +1508,7 @@ const redefinirPinRecuperado = async () => {
                                                         <MaterialCommunityIcons name={showConfirmPin ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
                                                     </Pressable>
                                                 </View>
+                                                <PinRequirements value={confirmPin} />
                                                 <Pressable
                                                     style={styles.primaryButton}
                                                     onPress={salvarPinAtual}
@@ -1560,7 +1597,7 @@ const redefinirPinRecuperado = async () => {
                                                         keyboardType="number-pad"
                                                         maxLength={4}
                                                         value={newPin}
-                                                        onChangeText={setNewPin}
+                                                        onChangeText={(value) => setNewPin(value.replace(/\D/g, '').slice(0, 4))}
                                                     />
                                                     <Pressable
                                                         style={styles.pinEyeButton}
@@ -1570,6 +1607,7 @@ const redefinirPinRecuperado = async () => {
                                                         <MaterialCommunityIcons name={showRecoveredPin ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
                                                     </Pressable>
                                                 </View>
+                                                <PinRequirements value={newPin} />
                                                 <View style={[styles.pinInputWrap, inputThemeStyle]}>
                                                     <TextInput
                                                         style={[styles.subTextInput, styles.pinTextInput, inputThemeStyle]}
@@ -1579,7 +1617,7 @@ const redefinirPinRecuperado = async () => {
                                                         keyboardType="number-pad"
                                                         maxLength={4}
                                                         value={confirmPin}
-                                                        onChangeText={setConfirmPin}
+                                                        onChangeText={(value) => setConfirmPin(value.replace(/\D/g, '').slice(0, 4))}
                                                     />
                                                     <Pressable
                                                         style={styles.pinEyeButton}
@@ -1589,6 +1627,7 @@ const redefinirPinRecuperado = async () => {
                                                         <MaterialCommunityIcons name={showRecoveredConfirmPin ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
                                                     </Pressable>
                                                 </View>
+                                                <PinRequirements value={confirmPin} />
                                                 <Pressable
                                                     style={styles.primaryButton}
                                                     onPress={redefinirPinRecuperado}
@@ -1652,7 +1691,6 @@ const redefinirPinRecuperado = async () => {
 
                 <BottomNav active="Perfil" />
             </View>
-
             <Modal
                 visible={isMaritalPickerVisible}
                 transparent
@@ -2238,6 +2276,35 @@ const styles = StyleSheet.create({
         height: 44,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    pinRequirements: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        marginTop: -5,
+        marginBottom: 8,
+        paddingLeft: 4,
+    },
+    pinRequirementDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+        backgroundColor: '#4A4A52',
+    },
+    pinRequirementDotFilled: {
+        backgroundColor: '#F59E0B',
+    },
+    pinRequirementDotValid: {
+        backgroundColor: '#22C55E',
+    },
+    pinRequirementText: {
+        color: '#7C7C82',
+        fontSize: 11,
+        marginLeft: 3,
+    },
+    disguiseSaveButton: {
+        marginTop: 4,
+        marginBottom: 10,
     },
     linkTextCentered: {
         color: '#C83C59',

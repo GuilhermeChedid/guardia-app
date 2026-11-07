@@ -449,9 +449,8 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         paddingHorizontal: 20,
         paddingTop: 24,
-        paddingBottom: 85,
+        paddingBottom: 140,
         backgroundColor: '#0D0D0F',
-        justifyContent: 'space-between',
     },
     sosStatusBar: {
         minHeight: 28,
