@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Image, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -303,7 +303,11 @@ export default function HomeScreen() {
     return (
         <MobileFrame backgroundColor="#0D0D0F">
             <FeedbackBanner feedback={feedback} onClose={() => setFeedback(null)} />
-            <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <ScrollView
+                style={[styles.container, { backgroundColor: colors.background }]}
+                contentContainerStyle={styles.containerContent}
+                showsVerticalScrollIndicator={false}
+            >
                 {(sosCountdown !== null || sosDispatched) && (
                     <View style={styles.sosStatusBar}>
                         <Text style={styles.sosStatusText}>
@@ -377,7 +381,7 @@ export default function HomeScreen() {
                         </View>
                     </View>
                 </View>
-            </View>
+            </ScrollView>
             <BottomNav active="Home" />
         </MobileFrame>
     );
@@ -440,6 +444,9 @@ function Metric({ label, value, active = false }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+    },
+    containerContent: {
+        flexGrow: 1,
         paddingHorizontal: 20,
         paddingTop: 24,
         paddingBottom: 85,

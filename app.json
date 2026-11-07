@@ -1,5 +1,6 @@
 {
   "expo": {
+    "name": "Guardiã",
     "icon": "./src/assets/imagens/icon_guardia.png",
     "plugins": [
       "expo-font",

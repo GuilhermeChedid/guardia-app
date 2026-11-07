@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, Pressable, StyleSheet, Text } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     canDrawOverlays,
@@ -19,46 +19,66 @@ export const PENDING_SOS_STORAGE_KEY = '@guardia/pending-sos';
 export const SOS_WIDGET_ENABLED_KEY = '@guardia/sos-widget-enabled';
 
 export function SosBubble({ close }) {
-    const [expanded, setExpanded] = React.useState(false);
+    const [customization, setCustomization] = React.useState({});
+    const [isActive, setIsActive] = React.useState(false);
+
+    React.useEffect(() => {
+        let mounted = true;
+        Promise.all([
+            AsyncStorage.getItem('@guardia/settings_customization'),
+            AsyncStorage.getItem(ACTIVE_SOS_SESSION_KEY),
+        ]).then(([savedCustomization, activeSession]) => {
+            if (!mounted) return;
+            setCustomization(savedCustomization ? JSON.parse(savedCustomization) : {});
+            setIsActive(Boolean(activeSession));
+        }).catch((error) => {
+            console.error('Erro ao carregar personalização do widget:', error);
+        });
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     const handlePress = async () => {
-        if (!expanded) {
-            setExpanded(true);
-            return;
-        }
-
         const activeSession = await AsyncStorage.getItem(ACTIVE_SOS_SESSION_KEY);
-        if (activeSession) {
+        const pendingSos = await AsyncStorage.getItem(PENDING_SOS_STORAGE_KEY);
+        if (activeSession || pendingSos === 'true') {
             try {
-                await stopSosTracking();
+                if (activeSession) {
+                    await stopSosTracking();
+                }
             } catch (error) {
                 console.error('Erro ao encerrar SOS pelo widget:', error);
             }
             await AsyncStorage.setItem(PENDING_SOS_STORAGE_KEY, 'false');
+            setIsActive(false);
             if (navigationRef.isReady()) {
                 navigationRef.navigate('Home', { stopSos: true });
             }
-            close();
             await openApp();
             return;
         }
 
         await AsyncStorage.setItem(PENDING_SOS_STORAGE_KEY, 'true');
+        setIsActive(true);
         if (navigationRef.isReady()) {
             navigationRef.navigate('Home', { startSos: true });
         }
-        close();
         await openApp();
     };
 
     return (
         <Pressable
-            style={[styles.bubble, expanded && styles.bubbleExpanded]}
+            style={[styles.bubble, isActive && styles.bubbleActive]}
             onPress={handlePress}
-            accessibilityLabel={expanded ? 'Confirmar ativação do SOS' : 'Abrir widget SOS'}
+            accessibilityLabel={isActive ? 'Cancelar SOS' : 'Ativar SOS'}
         >
-            <MaterialCommunityIcons name="alarm-light-outline" size={27} color="#FFFFFF" />
-            {expanded ? <Text style={styles.label}>TOQUE NOVAMENTE</Text> : null}
+            {customization.widgetPhoto ? (
+                <Image source={{ uri: customization.widgetPhoto }} style={styles.widgetImage} />
+            ) : (
+                <MaterialCommunityIcons name="alarm-light-outline" size={27} color="#FFFFFF" />
+            )}
+            <Text style={styles.label}>{customization.widgetName || (isActive ? 'SOS ativo' : 'SOS')}</Text>
         </Pressable>
     );
 }
@@ -105,21 +125,24 @@ const styles = StyleSheet.create({
         width: 68,
         height: 68,
         borderRadius: 34,
-        backgroundColor: 'rgba(200, 60, 89, 0.72)',
+        backgroundColor: 'rgba(200, 60, 89, 0.52)',
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: '#FFFFFF',
         elevation: 8,
     },
-    bubbleExpanded: {
-        width: 118,
-        borderRadius: 34,
+    bubbleActive: {
+        backgroundColor: 'rgba(39, 174, 96, 0.52)',
     },
     label: {
         color: '#FFFFFF',
-        fontSize: 10,
+        fontSize: 9,
         fontWeight: '800',
         marginTop: 1,
+    },
+    widgetImage: {
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        marginBottom: 2,
     },
 });
