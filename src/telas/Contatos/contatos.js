@@ -10,7 +10,6 @@ import {
     View,
     KeyboardAvoidingView,
     Platform,
-    Linking,
     Share,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -24,6 +23,7 @@ import { useUserProfile } from '../../context/UserProfileContext';
 import api from '../../services/api';
 import { phoneMask } from '../../utils/masks';
 import { formatDisplayName } from '../../utils/nameValidation';
+import { callPhoneNumber } from '../../services/phoneCall';
 
 const POLICE_CONTACT_STORAGE_KEY = '@guardia/police-contact';
 const DEFAULT_POLICE_CONTACT = {
@@ -222,14 +222,11 @@ export default function ContatosScreen() {
             return;
         }
 
-        const phoneUrl = `tel:${phone}`;
         try {
-            const canOpen = await Linking.canOpenURL(phoneUrl);
-            if (!canOpen) {
+            const callMode = await callPhoneNumber(phone);
+            if (callMode === 'unavailable') {
                 showFeedback('Não foi possível abrir o aplicativo de telefone neste dispositivo.', 'error');
-                return;
             }
-            await Linking.openURL(phoneUrl);
         } catch (error) {
             console.error('Erro ao abrir telefone do contato:', error);
             showFeedback('Não foi possível iniciar a ligação.', 'error');

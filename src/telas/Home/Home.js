@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -14,6 +14,7 @@ import api from '../../services/api';
 import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
 import { startSosTracking, stopSosTracking } from '../../services/sosTracking';
 import { PENDING_SOS_STORAGE_KEY } from '../../services/sosWidget';
+import { callPhoneNumber } from '../../services/phoneCall';
 
 const CARDS = [
     { title: 'Guardar Evidência', subtitle: 'Seguro e criptografado', color: '#EB5757', bg: 'rgba(235,87,87,0.12)', icon: 'record-circle' },
@@ -150,14 +151,14 @@ export default function HomeScreen() {
             const testPhone = policeContact?.phone
                 || process.env.EXPO_PUBLIC_SOS_TEST_PHONE
                 || '+5561998171598';
-            const phoneUrl = `tel:${testPhone}`;
-            const callOpened = Platform.OS !== 'web' && await Linking.canOpenURL(phoneUrl);
-            if (callOpened) {
-                await Linking.openURL(phoneUrl);
-            }
+            const callMode = Platform.OS !== 'web'
+                ? await callPhoneNumber(testPhone)
+                : 'unavailable';
             showFeedback(
-                callOpened
-                    ? 'Alerta enviado automaticamente pelo Telegram. A ligação de teste foi aberta.'
+                callMode === 'direct'
+                    ? 'Alerta enviado automaticamente pelo Telegram. A ligação foi iniciada.'
+                    : callMode === 'dialer'
+                        ? 'Alerta enviado pelo Telegram. Permita a ligação direta para não abrir o teclado do telefone.'
                     : 'Alerta enviado automaticamente pelo Telegram. A ligação de teste só pode ser iniciada no celular.',
                 'success',
             );

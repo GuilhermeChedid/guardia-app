@@ -49,6 +49,9 @@
     ],
     "android": {
       "icon": "./src/assets/imagens/icon_guardia.png",
+      "permissions": [
+        "CALL_PHONE"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/imagens/icon_guardia.png",
         "backgroundColor": "#3B1D4B"
