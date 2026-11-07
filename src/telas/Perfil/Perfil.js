@@ -76,6 +76,14 @@ export default function PerfilScreen() {
     const handleWidgetToggle = async (enabled) => {
         if (isUpdatingWidget) return;
 
+        if (Platform.OS === 'web') {
+            setFeedback({
+                type: 'error',
+                message: 'O widget SOS está disponível apenas no aplicativo Android.',
+            });
+            return;
+        }
+
         if (!enabled) {
             disableSosWidget();
             await AsyncStorage.setItem(SOS_WIDGET_ENABLED_KEY, 'false');
@@ -249,13 +257,15 @@ export default function PerfilScreen() {
 
     const handlePickWidgetPhoto = async () => {
         try {
-            const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (!permission.granted) {
-                setFeedback({
-                    type: 'error',
-                    message: 'Permita o acesso às fotos para escolher a imagem do widget SOS.',
-                });
-                return;
+            if (Platform.OS !== 'web') {
+                const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (!permission.granted) {
+                    setFeedback({
+                        type: 'error',
+                        message: 'Permita o acesso às fotos para escolher a imagem do widget SOS.',
+                    });
+                    return;
+                }
             }
 
             const result = await ImagePicker.launchImageLibraryAsync({
@@ -782,24 +792,6 @@ const redefinirPinRecuperado = async () => {
                                 )}
                             </View>
 
-                            <View style={[styles.settingsRow, styles.widgetToggleRow]}>
-                                <View style={[styles.settingIconBox, { backgroundColor: colors.surfaceStrong }]}>
-                                    <MaterialCommunityIcons name="alarm-light-outline" size={20} color="#C83C59" />
-                                </View>
-                                <View style={styles.settingTextWrap}>
-                                    <Text style={[styles.settingTitle, { color: colors.text }]}>Ativar widget SOS</Text>
-                                    <Text style={[styles.settingSubtitle, { color: colors.muted }]}>
-                                        Exibir o botão flutuante sobre outros aplicativos
-                                    </Text>
-                                </View>
-                                <Switch
-                                    value={isWidgetEnabled}
-                                    onValueChange={handleWidgetToggle}
-                                    disabled={isUpdatingWidget}
-                                    trackColor={{ false: '#374151', true: '#C83C59' }}
-                                    thumbColor="#FFFFFF"
-                                />
-                            </View>
                             <Text style={[styles.userName, { color: colors.text }]}>{profile.name}</Text>
                             <Text style={[styles.userEmail, { color: colors.muted }]}>{profile.email}</Text>
                             <Text style={[styles.userPhone, { color: colors.muted }]}>{phoneMask(profile.phone)}</Text>
@@ -1079,6 +1071,29 @@ const redefinirPinRecuperado = async () => {
 
                             {/* Widget SOS */}
                             <Text style={styles.sectionHeader}>WIDGET SOS</Text>
+                            <View style={[styles.settingsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                <View style={[styles.settingsRow, styles.widgetToggleRow]}>
+                                    <View style={[styles.settingIconBox, { backgroundColor: colors.surfaceStrong }]}>
+                                        <MaterialCommunityIcons name="alarm-light-outline" size={20} color="#C83C59" />
+                                    </View>
+                                    <View style={styles.settingTextWrap}>
+                                        <Text style={[styles.settingTitle, { color: colors.text }]}>Ativar widget SOS</Text>
+                                        <Text style={[styles.settingSubtitle, { color: colors.muted }]}>
+                                            Exibir o botão flutuante sobre outros aplicativos
+                                        </Text>
+                                    </View>
+                                    <Switch
+                                        value={isWidgetEnabled}
+                                        onValueChange={handleWidgetToggle}
+                                        disabled={isUpdatingWidget}
+                                        trackColor={{ false: '#374151', true: '#C83C59' }}
+                                        thumbColor="#FFFFFF"
+                                    />
+                                </View>
+                            </View>
+
+                            {isWidgetEnabled && (
+                            <>
                             <View style={[styles.settingsCard, styles.widgetCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                 <Text style={styles.widgetPreviewLabel}>PRÉVIA</Text>
                                 <View style={styles.widgetPreviewRow}>
@@ -1148,6 +1163,8 @@ const redefinirPinRecuperado = async () => {
                             <Text style={styles.settingsHint}>
                                 O widget flutuante funciona no Android após a autorização de sobreposição. Toque uma vez para expandir e novamente para confirmar o SOS.
                             </Text>
+                            </>
+                            )}
 
                             {/* Segurança */}
                             <Text style={styles.sectionHeader}>SEGURANÇA</Text>
@@ -2069,7 +2086,9 @@ const styles = StyleSheet.create({
     secondaryButton: {
         flex: 1,
         height: 48,
-        backgroundColor: '#2C2C2E',
+        backgroundColor: '#3A3A3F',
+        borderWidth: 1,
+        borderColor: '#5A5A63',
         borderRadius: 24,
         alignItems: 'center',
         justifyContent: 'center',

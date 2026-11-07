@@ -78,6 +78,9 @@ CREATE TABLE evidencias (
     data_criacao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE evidencias
+    ADD COLUMN IF NOT EXISTS dados_criptografados TEXT;
+
 -- ============================================================================
 -- 6. TOKENS_RECUPERACAO (Relacionamento 1:N)
 -- ============================================================================

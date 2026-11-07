@@ -33,6 +33,7 @@ const UPLOAD_TYPES = {
     audio: { label: 'Áudio', extensions: ['mp3', 'wav', 'm4a'], maxBytes: 10 * 1024 * 1024, limit: '10 MB', mime: 'audio/*' },
     file: { label: 'Texto', extensions: ['txt'], maxBytes: 5 * 1024 * 1024, limit: '5 MB', mime: 'text/plain' },
 };
+const WEB_EVIDENCE_MAX_BYTES = 3 * 1024 * 1024;
 
 export default function ProvasScreen() {
     const { colors } = useTheme();
@@ -384,6 +385,10 @@ export default function ProvasScreen() {
                 return;
             }
             const textSizeBytes = isDirectText ? new Blob([formData.content]).size : 0;
+            if (Platform.OS === 'web' && isDirectText && textSizeBytes > WEB_EVIDENCE_MAX_BYTES) {
+                showFeedback('No Expo Web, o texto deve ter no máximo 3 MB.', 'error');
+                return;
+            }
             if (isDirectText && textSizeBytes > UPLOAD_TYPES.file.maxBytes) {
                 showFeedback('Texto muito grande. O tamanho máximo permitido para TXT é 5 MB.', 'error');
                 return;
@@ -417,6 +422,15 @@ export default function ProvasScreen() {
                         contentBase64: await readAssetAsBase64(upload),
                         mimeType: upload.mimeType || UPLOAD_TYPES[uploadType].mime,
                     };
+                if (Platform.OS === 'web' && !isDirectText) {
+                    const encodedSize = payload.contentBase64
+                        ? Math.floor(payload.contentBase64.length * 0.75)
+                        : 0;
+                    if (encodedSize > WEB_EVIDENCE_MAX_BYTES) {
+                        showFeedback('No Expo Web, cada arquivo deve ter no máximo 3 MB.', 'error');
+                        return;
+                    }
+                }
                 const response = selectedFile
                 ? await api.put(`/auth/evidences/${userId}/${selectedFile.id}`, formData)
                 : await api.post(`/auth/evidences/${userId}`, payload);

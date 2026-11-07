@@ -68,6 +68,11 @@ export default function HomeScreen() {
     useEffect(() => () => clearTimeout(feedbackTimer.current), []);
 
     const refreshLocationStatus = useCallback(async () => {
+        if (Platform.OS === 'web') {
+            setIsLocationActive(false);
+            return;
+        }
+
         try {
             const permission = await Location.getForegroundPermissionsAsync();
             const servicesEnabled = await Location.hasServicesEnabledAsync();
@@ -87,6 +92,11 @@ export default function HomeScreen() {
     const dispatchSos = async () => {
         let sessionId = null;
         try {
+            if (Platform.OS === 'web') {
+                showFeedback('O envio de SOS com localização está disponível apenas no aplicativo.');
+                return;
+            }
+
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
                 showFeedback('Localização necessária: permita o acesso à localização para enviar o alerta com sua posição.');

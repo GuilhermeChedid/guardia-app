@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -35,6 +36,10 @@ if (!TaskManager.isTaskDefined(SOS_LOCATION_TASK)) {
 export async function startSosTracking(sessionId) {
     if (!sessionId) {
         throw new Error('Sessão SOS inválida.');
+    }
+
+    if (Platform.OS === 'web') {
+        throw new Error('O rastreamento SOS está disponível apenas no aplicativo.');
     }
 
     const backgroundPermission = await Location.requestBackgroundPermissionsAsync();
