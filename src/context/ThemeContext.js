@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const THEME_STORAGE_KEY = '@guardia/theme-light';
 
-const darkColors = {
+export const darkColors = {
     background: '#0C0D10',
     surface: '#171719',
     surfaceStrong: '#121215',
@@ -11,6 +11,10 @@ const darkColors = {
     text: '#FFFFFF',
     muted: '#8E8E93',
     input: '#111318',
+    primary: '#C21852',
+    primaryDark: '#9F2F4F',
+    primaryLight: '#E04C78',
+    onPrimary: '#FFFFFF',
 };
 
 const lightColors = {
@@ -21,6 +25,10 @@ const lightColors = {
     text: '#1F2937',
     muted: '#667085',
     input: '#FFFFFF',
+    primary: '#C21852',
+    primaryDark: '#9F2F4F',
+    primaryLight: '#E04C78',
+    onPrimary: '#FFFFFF',
 };
 
 const ThemeContext = createContext(null);

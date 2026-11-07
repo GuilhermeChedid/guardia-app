@@ -16,7 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
-import { useTheme } from '../../context/ThemeContext';
+import { darkColors } from '../../context/ThemeContext';
 import { MARITAL_STATUS_OPTIONS } from '../../constants/profileOptions';
 import { cepMask, cpfMask, phoneMask } from '../../utils/masks';
 import { validateFullName } from '../../utils/nameValidation';
@@ -35,7 +35,7 @@ const BRAZILIAN_STATES = [
 
 export default function CadastroScreen() {
     const navigation = useNavigation();
-    const { colors } = useTheme();
+    const colors = darkColors;
 
     // Injeta estilo moderno e discreto para a barra de rolagem no navegador (Web)
     useEffect(() => {
@@ -216,7 +216,7 @@ export default function CadastroScreen() {
     };
 
     return (
-        <MobileFrame backgroundColor="#0B0B0C">
+        <MobileFrame backgroundColor="#0B0B0C" useThemeColors={false}>
             <FeedbackBanner feedback={feedback} onClose={() => setFeedback(null)} />
             <View style={[styles.screen, { backgroundColor: colors.background }]}>
                 <ScrollView

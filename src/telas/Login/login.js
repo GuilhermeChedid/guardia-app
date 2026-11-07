@@ -16,7 +16,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
-import { useTheme } from '../../context/ThemeContext';
+import { darkColors } from '../../context/ThemeContext';
 import api from '../../services/api';
 import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
 
@@ -32,7 +32,7 @@ const passwordRules = [
 
 export default function LoginScreen() {
     const navigation = useNavigation();
-    const { colors } = useTheme();
+    const colors = darkColors;
 
     useEffect(() => {
         if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -764,7 +764,7 @@ export default function LoginScreen() {
         </>
     );
         return (
-        <MobileFrame backgroundColor="#0B0B0C">
+        <MobileFrame backgroundColor="#0B0B0C" useThemeColors={false}>
             <FeedbackBanner
                 feedback={loginFeedback}
                 onClose={() => setLoginFeedback(null)}

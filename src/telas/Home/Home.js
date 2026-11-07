@@ -306,12 +306,12 @@ export default function HomeScreen() {
             <FeedbackBanner feedback={feedback} onClose={() => setFeedback(null)} />
             <ScrollView
                 style={[styles.container, { backgroundColor: colors.background }]}
-                contentContainerStyle={styles.containerContent}
+                contentContainerStyle={[styles.containerContent, { backgroundColor: colors.background }]}
                 showsVerticalScrollIndicator={false}
             >
                 {(sosCountdown !== null || sosDispatched) && (
-                    <View style={styles.sosStatusBar}>
-                        <Text style={styles.sosStatusText}>
+                    <View style={[styles.sosStatusBar, { backgroundColor: colors.primary }]}>
+                        <Text style={[styles.sosStatusText, { color: colors.onPrimary }]}>
                             {sosCountdown !== null
                                 ? `SOS será acionado em ${sosCountdown}s · Toque no botão para cancelar`
                                 : 'SOS disparado · Toque no botão para cancelar'}
@@ -329,31 +329,34 @@ export default function HomeScreen() {
                             {profile.name}
                         </Text>
                     </View>
-                    <Pressable onPress={() => navigation.navigate('Perfil')} style={styles.avatar}>
+                    <Pressable onPress={() => navigation.navigate('Perfil')} style={[styles.avatar, { backgroundColor: colors.primary }]}>
                         {profile.photoUrl ? (
                             <Image source={{ uri: profile.photoUrl }} style={styles.avatarImage} />
                         ) : (
-                            <Text style={styles.avatarText}>{getInitials(profile.name)}</Text>
+                            <Text style={[styles.avatarText, { color: colors.onPrimary }]}>{getInitials(profile.name)}</Text>
                         )}
                     </Pressable>
                 </View>
 
                 <View style={styles.sosContainer}>
-                    <Text style={styles.sosTitle}>PRESSIONE EM CASO DE EMERGÊNCIA</Text>
+                    <Text style={[styles.sosTitle, { color: colors.muted }]}>PRESSIONE EM CASO DE EMERGÊNCIA</Text>
                     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
                         <Pressable
                             style={[
                                 styles.sosButton,
                                 sosCountdown !== null && styles.sosButtonPending,
                                 sosCountdown !== null && sosPulse && styles.sosButtonPulse,
+                                { backgroundColor: colors.primary, shadowColor: colors.primary },
+                                sosCountdown !== null && { backgroundColor: colors.primaryDark },
+                                sosCountdown !== null && sosPulse && { backgroundColor: colors.primaryLight },
                             ]}
                             onPressIn={handlePressIn}
                             onPressOut={handlePressOut}
                             onPress={handleSosPress}
                         >
                             <Feather name="phone-call" size={30} color="#FFFFFF" />
-                            <Text style={styles.sosLabel}>{sosCountdown ?? 'SOS'}</Text>
-                            <Text style={styles.sosSubtitle}>
+                            <Text style={[styles.sosLabel, { color: colors.onPrimary }]}>{sosCountdown ?? 'SOS'}</Text>
+                            <Text style={[styles.sosSubtitle, { color: colors.onPrimary }]}>
                                 {sosCountdown !== null || sosDispatched ? 'Toque para cancelar' : 'Pressione para acionar ajuda'}
                             </Text>
                         </Pressable>
@@ -372,12 +375,12 @@ export default function HomeScreen() {
                     </View>
 
                     <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        <Text style={styles.summaryTitle}>RESUMO DE SEGURANÇA</Text>
+                        <Text style={[styles.summaryTitle, { color: colors.muted }]}>RESUMO DE SEGURANÇA</Text>
                         <View style={styles.summaryMetrics}>
                             <Metric label="Contatos" value={`${profile.contactsCount} salvos`} active />
-                            <View style={styles.divider} />
+                            <View style={[styles.divider, { backgroundColor: colors.border }]} />
                             <Metric label="Localização" value={isLocationActive ? 'Ativa' : 'Inativa'} active={isLocationActive} />
-                            <View style={styles.divider} />
+                            <View style={[styles.divider, { backgroundColor: colors.border }]} />
                             <Metric label="Evidências" value={`${profile.evidenceCount} salvas`} active />
                         </View>
                     </View>
@@ -434,10 +437,12 @@ function ActionCard({ card, onPress }) {
 }
 
 function Metric({ label, value, active = false }) {
+    const { colors } = useTheme();
+
     return (
         <View style={styles.metricItem}>
-            <Text style={styles.metricLabel}>{label}</Text>
-            <Text style={[styles.metricValue, active ? styles.metricActive : styles.metricInactive]}>{value}</Text>
+            <Text style={[styles.metricLabel, { color: colors.muted }]}>{label}</Text>
+            <Text style={[styles.metricValue, { color: active ? '#2ECC71' : '#EB5757' }]}>{value}</Text>
         </View>
     );
 }
