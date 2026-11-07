@@ -7,18 +7,24 @@ dotenv.config({
 });
 
 const algorithm = 'aes-256-gcm';
-const key = Buffer.from(
-    process.env.EVIDENCE_ENCRYPTION_KEY || '',
-    'base64'
-);
 
-if (key.length !== 32) {
-    throw new Error(
-        'EVIDENCE_ENCRYPTION_KEY deve ser uma chave base64 de 32 bytes.'
+const getKey = () => {
+    const key = Buffer.from(
+        process.env.EVIDENCE_ENCRYPTION_KEY || '',
+        'base64'
     );
-}
+
+    if (key.length !== 32) {
+        throw new Error(
+            'EVIDENCE_ENCRYPTION_KEY deve ser uma chave base64 de 32 bytes.'
+        );
+    }
+
+    return key;
+};
 
 const encrypt = (value) => {
+    const key = getKey();
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv(algorithm, key, iv);
 
@@ -33,6 +39,7 @@ const encrypt = (value) => {
 };
 
 const decrypt = (value) => {
+    const key = getKey();
     const [ivValue, authTagValue, encryptedValue] = value.split('.');
 
     const decipher = crypto.createDecipheriv(
