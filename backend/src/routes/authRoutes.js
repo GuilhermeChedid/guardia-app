@@ -40,7 +40,9 @@ const {
     stopTelegramSos,
 } = require('../controllers/telegramController');
 
-const profileUploadDirectory = path.resolve(__dirname, '../../uploads/profile');
+const profileUploadDirectory = process.env.VERCEL
+    ? path.join('/tmp', 'guardia-uploads', 'profile')
+    : path.resolve(__dirname, '../../uploads/profile');
 fs.mkdirSync(profileUploadDirectory, { recursive: true });
 const profileUpload = multer({
     storage: multer.diskStorage({

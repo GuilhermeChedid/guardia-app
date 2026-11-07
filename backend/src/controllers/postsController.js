@@ -3,7 +3,9 @@ const fs = require('fs');
 const crypto = require('crypto');
 const pool = require('../../db');
 
-const postUploadDirectory = path.resolve(__dirname, '../../uploads/posts');
+const postUploadDirectory = process.env.VERCEL
+    ? path.join('/tmp', 'guardia-uploads', 'posts')
+    : path.resolve(__dirname, '../../uploads/posts');
 fs.mkdirSync(postUploadDirectory, { recursive: true });
 
 const isAdmin = async (client, usuarioId) => {
