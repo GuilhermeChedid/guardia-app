@@ -876,18 +876,37 @@ const deleteContact = async (req, res) => {
 };
 
 const mapEvidence = (row) => {
-    const data = row.dados_criptografados ? decrypt(row.dados_criptografados) : {
-        name: row.nome_arquivo,
-        type: row.tipo_arquivo,
-        size: row.tamanho_arquivo,
-        duration: row.duracao,
-        description: row.descricao,
-        url: row.url_arquivo,
-        content: row.content || '',
-        createdAt: row.data_criacao,
-    };
+    if (!row.dados_criptografados) {
+        return {
+            id: row.id,
+            name: row.nome_arquivo,
+            type: row.tipo_arquivo,
+            size: row.tamanho_arquivo,
+            duration: row.duracao,
+            description: row.descricao,
+            url: row.url_arquivo,
+            content: row.content || '',
+            createdAt: row.data_criacao,
+        };
+    }
 
-    return { id: row.id, ...data };
+    try {
+        return { id: row.id, ...decrypt(row.dados_criptografados) };
+    } catch (error) {
+        console.error('Não foi possível descriptografar a evidência:', row.id, error);
+        return {
+            id: row.id,
+            name: 'Evidência indisponível',
+            type: 'file',
+            size: '',
+            duration: '',
+            description: 'Esta evidência não pode ser lida com a chave atual.',
+            url: '',
+            content: '',
+            createdAt: row.data_criacao,
+            unreadable: true,
+        };
+    }
 };
 
 const registerEvidenceHistory = (client, evidenceId, usuarioId, action) =>
@@ -993,6 +1012,12 @@ const updateEvidence = async (req, res) => {
         );
         if (!existing.rows.length) return res.status(404).json({ success: false, message: 'Evidência não encontrada.' });
         const evidence = mapEvidence(existing.rows[0]);
+        if (evidence.unreadable) {
+            return res.status(409).json({
+                success: false,
+                message: 'Esta evidência não pode ser editada porque seus dados estão ilegíveis.',
+            });
+        }
         evidence.name = name.trim();
         evidence.description = description.trim();
         const result = await client.query(

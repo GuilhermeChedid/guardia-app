@@ -244,6 +244,10 @@ export default function ProvasScreen() {
     };
 
     const openEdit = () => {
+        if (selectedFile?.unreadable) {
+            showFeedback('Esta evidência não pode ser editada porque seus dados estão ilegíveis.', 'error');
+            return;
+        }
         setFormData({
             name: selectedFile.name,
             description: selectedFile.description || '',
@@ -466,6 +470,10 @@ export default function ProvasScreen() {
     };
 
     const downloadEvidence = async (file = selectedFile) => {
+        if (file?.unreadable) {
+            showFeedback('Esta evidência não pode ser acessada porque seus dados estão ilegíveis.', 'error');
+            return;
+        }
         if (!file) return;
 
         try {
@@ -770,9 +778,9 @@ export default function ProvasScreen() {
 
                         <View style={styles.divider} />
 
-                        <Pressable style={styles.optionRow} onPress={openEdit}>
+                        <Pressable style={styles.optionRow} onPress={openEdit} disabled={selectedFile?.unreadable}>
                             <Feather name="edit" size={20} color="#FFFFFF" />
-                            <Text style={[styles.optionText, { color: colors.text }]}>Renomear / Editar descrição</Text>
+                            <Text style={[styles.optionText, { color: selectedFile?.unreadable ? colors.muted : colors.text }]}>Renomear / Editar descrição</Text>
                         </Pressable>
 
                         <View style={styles.divider} />
