@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "Guardiã",
+    "slug": "guardia-app",
     "icon": "./src/assets/imagens/icon_guardia.png",
     "plugins": [
       "expo-font",
