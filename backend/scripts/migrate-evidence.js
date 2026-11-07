@@ -12,7 +12,16 @@ const migrate = async () => {
             ALTER TABLE evidencias
             ADD COLUMN IF NOT EXISTS dados_criptografados TEXT
         `);
-        console.log('Coluna dados_criptografados pronta.');
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS historico_evidencias (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                evidencia_id UUID,
+                usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                acao VARCHAR(20) NOT NULL,
+                data_hora TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('Estrutura de evidências pronta.');
     } finally {
         await pool.end();
     }
