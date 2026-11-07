@@ -22,6 +22,10 @@ app.use(
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postsRoutes);
 app.use('/api/admin', adminRoutes);
+app.post('/api/telegram/webhook', (req, res, next) => {
+    req.url = '/telegram/webhook';
+    authRoutes.handle(req, res, next);
+});
 
 app.get('/api/health', (req, res) => {
     res.json({

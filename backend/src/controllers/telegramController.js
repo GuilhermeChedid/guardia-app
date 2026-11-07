@@ -86,6 +86,10 @@ const telegramWebhook = async (req, res) => {
     const text = message?.text || '';
     const match = text.match(/^\/start(?:@[A-Za-z0-9_]+)?(?:\s+([A-Za-z0-9_-]+))?$/i);
     if (!message?.chat?.id || !match?.[1]) {
+        console.warn('Webhook Telegram ignorou mensagem sem token de vínculo.', {
+            chatId: message?.chat?.id,
+            text,
+        });
         return res.sendStatus(200);
     }
 
@@ -98,6 +102,10 @@ const telegramWebhook = async (req, res) => {
              RETURNING id`,
             [String(message.chat.id), match[1]],
         );
+        console.info('Resultado do vínculo Telegram:', {
+            chatId: String(message.chat.id),
+            matchedContacts: result.rowCount,
+        });
         if (result.rows.length) {
             const { token } = requireBotConfig();
             await telegramRequest(token, 'sendMessage', {
