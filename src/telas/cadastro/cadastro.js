@@ -24,7 +24,7 @@ import { cepMask, cpfMask, phoneMask } from '../../utils/masks';
 import { isValidCPF, isValidCEP } from '../../utils/validators';
 import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
 
-const TERMS_FILE = require('../../../assets/termos-de-uso.pdf');
+const TERMS_FILE = require('../../assets/termos-de-uso.pdf');
 
 const BRAZILIAN_STATES = [
     ['AC', 'Acre'], ['AL', 'Alagoas'], ['AP', 'Amapá'],
