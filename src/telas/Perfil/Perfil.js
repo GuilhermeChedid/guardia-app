@@ -115,6 +115,14 @@ export default function PerfilScreen() {
 
         try {
             setIsUpdatingWidget(true);
+            const foregroundPermission = await Location.requestForegroundPermissionsAsync();
+            if (foregroundPermission.status !== 'granted') {
+                setFeedback({
+                    type: 'error',
+                    message: 'Permita o acesso à localização para ativar o widget SOS.',
+                });
+                return;
+            }
             const permission = await Location.requestBackgroundPermissionsAsync();
             if (permission.status !== 'granted') {
                 setFeedback({

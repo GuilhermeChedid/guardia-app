@@ -114,7 +114,7 @@ export default function LoginScreen() {
 
             await AsyncStorage.setItem(
                 '@guardia/auth_user',
-                JSON.stringify(usuario)
+                JSON.stringify({ ...usuario, loginAt: Date.now() })
             );
 
             setLoginFeedback({

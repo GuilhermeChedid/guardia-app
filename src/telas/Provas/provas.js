@@ -405,6 +405,12 @@ export default function ProvasScreen() {
             const responses = [];
             for (const upload of uploads) {
                 const textName = formData.name.toLowerCase().endsWith('.txt') ? formData.name : `${formData.name}.txt`;
+                const originalName = upload?.name || '';
+                const originalExtension = originalName.includes('.') ? originalName.split('.').pop().toLowerCase() : '';
+                const typedName = formData.name.trim();
+                const binaryName = uploads.length === 1 && typedName
+                    ? (typedName.includes('.') ? typedName : `${typedName}${originalExtension ? `.${originalExtension}` : ''}`)
+                    : originalName;
                 const payload = selectedFile
                     ? formData
                     : isDirectText
@@ -417,7 +423,7 @@ export default function ProvasScreen() {
                             content: formData.content,
                         }
                     : {
-                        name: upload.name,
+                        name: binaryName,
                         description: formData.description,
                         type: uploadType,
                         sizeBytes: upload.size || 0,

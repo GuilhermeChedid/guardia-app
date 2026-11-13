@@ -9,6 +9,7 @@ import {
     Text,
     TextInput,
     View,
+    KeyboardAvoidingView,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -210,6 +211,10 @@ export default function InformacoesScreen() {
                 `}} />
             )}
             <View style={[styles.screen, { backgroundColor: colors.background }]}>
+                <KeyboardAvoidingView
+                    style={styles.detailKeyboardAvoid}
+                    behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
+                >
                 <ScrollView
                     style={styles.scrollView}
                     contentContainerStyle={styles.containerContent}
@@ -390,6 +395,8 @@ export default function InformacoesScreen() {
                                         placeholder="Escreva um comentário..."
                                         placeholderTextColor={colors.muted}
                                         style={[styles.commentInput, { color: colors.text }]}
+                                        multiline
+                                        textAlignVertical="top"
                                     />
                                     <Pressable style={styles.sendBtn} onPress={addComment}>
                                         <MaterialCommunityIcons name="send" size={15} color="#FFFFFF" />
@@ -399,6 +406,7 @@ export default function InformacoesScreen() {
                         </>
                     )}
                 </ScrollView>
+                </KeyboardAvoidingView>
             </View>
             <BottomNav active="Informacoes" />
         </MobileFrame>
@@ -406,6 +414,9 @@ export default function InformacoesScreen() {
 }
 
 const styles = StyleSheet.create({
+    detailKeyboardAvoid: {
+        flex: 1,
+    },
     screen: {
         flex: 1,
         width: '100%',
