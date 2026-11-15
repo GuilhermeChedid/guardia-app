@@ -50,7 +50,14 @@
     "android": {
       "icon": "./src/assets/imagens/icon_guardia.png",
       "permissions": [
-        "CALL_PHONE"
+        "CALL_PHONE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.POST_NOTIFICATIONS"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/imagens/icon_guardia.png",
@@ -61,8 +68,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "855360c5-99a6-436c-a7e2-97e814995f75"
+        "projectId": "4d7a5f43-b8f1-4e32-8886-c31c623b22f9"
       }
-    }
+    },
+    "owner": "guilhermechedids-team"
   }
 }
