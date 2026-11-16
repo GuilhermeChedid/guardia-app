@@ -26,21 +26,18 @@ import api from '../../services/api';
 import { phoneMask } from '../../utils/masks';
 import { cepMask } from '../../utils/masks';
 import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
+import PasswordRulesChecklist, { PASSWORD_RULES } from '../../components/PasswordRulesChecklist/PasswordRulesChecklist';
 import * as Location from 'expo-location';
 import { setAppIcon } from '../../services/appIcon';
 import {
     disableSosWidget,
     enableSosWidget,
+    refreshSosWidget,
     SOS_WIDGET_ENABLED_KEY,
 } from '../../services/sosWidget';
+import { stopSosTracking } from '../../services/sosTracking';
 
-const passwordRules = [
-    { label: 'Mínimo 8 caracteres', test: (password) => password.length >= 8 },
-    { label: '1 letra maiúscula', test: (password) => /[A-Z]/.test(password) },
-    { label: '1 letra minúscula', test: (password) => /[a-z]/.test(password) },
-    { label: '1 número', test: (password) => /\d/.test(password) },
-    { label: '1 caractere especial (!@#$%&*_.-)', test: (password) => /[!@#$%&*_.-]/.test(password) },
-];
+const passwordRules = PASSWORD_RULES;
 
 function PinRequirements({ value }) {
     const digits = /^\d{4}$/.test(value);
@@ -66,7 +63,7 @@ function PinRequirements({ value }) {
 export default function PerfilScreen() {
     const navigation = useNavigation();
     const { isLight, colors, toggleTheme } = useTheme();
-    const { profile, refreshProfile } = useUserProfile();
+    const { profile, refreshProfile, clearProfile } = useUserProfile();
 
     useEffect(() => {
         if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -328,6 +325,9 @@ export default function PerfilScreen() {
                     widgetEnabled: isWidgetEnabled,
                 }),
             );
+            if (isWidgetEnabled) {
+                await refreshSosWidget({ widgetPhoto, widgetName });
+            }
             setFeedback({
                 type: 'success',
                 message: 'Personalização salva neste dispositivo.',
@@ -448,6 +448,14 @@ const salvarSenhaAtual = async () => {
         setFeedback({
             type: 'error',
             message: 'A nova senha e a confirmação não coincidem.',
+        });
+        return;
+    }
+
+    if (!passwordRules.every((rule) => rule.test(newPassword))) {
+        setFeedback({
+            type: 'error',
+            message: 'A senha deve atender a todos os requisitos.',
         });
         return;
     }
@@ -796,7 +804,21 @@ const redefinirPinRecuperado = async () => {
 
     const handleLogout = async () => {
         try {
-            await AsyncStorage.removeItem('@guardia/auth_user');
+            try {
+                await stopSosTracking();
+            } catch (error) {
+                console.error('Erro ao encerrar rastreamento SOS no logout:', error);
+            }
+            disableSosWidget();
+            await AsyncStorage.multiRemove([
+                '@guardia/auth_user',
+                '@guardia/profile',
+                '@guardia/settings_customization',
+                SOS_WIDGET_ENABLED_KEY,
+                '@guardia/pending-sos',
+            ]);
+            setIsWidgetEnabled(false);
+            clearProfile();
             setProfileSaveMessage('Você saiu da conta com sucesso.');
             clearTimeout(profileSaveTimer.current);
             profileSaveTimer.current = setTimeout(() => {
@@ -1276,6 +1298,7 @@ const redefinirPinRecuperado = async () => {
                                                         <MaterialCommunityIcons name={showRecoveredPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
                                                     </Pressable>
                                                 </View>
+                                                <PasswordRulesChecklist password={newPassword} style={styles.passwordRules} />
                                                 <View style={[styles.pinInputWrap, inputThemeStyle]}>
                                                     <TextInput
                                                         style={[styles.subTextInput, styles.pinTextInput, inputThemeStyle]}
@@ -1404,15 +1427,7 @@ const redefinirPinRecuperado = async () => {
                                                         <MaterialCommunityIcons name={showRecoveredConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.muted} />
                                                     </Pressable>
                                                 </View>
-                                                <View style={styles.passwordRules}>
-                                                    {passwordRules.map((rule) => (
-                                                        <PasswordRule
-                                                            key={rule.label}
-                                                            label={rule.label}
-                                                            valid={rule.test(newPassword)}
-                                                        />
-                                                    ))}
-                                                </View>
+                                                <PasswordRulesChecklist password={newPassword} style={styles.passwordRules} />
                                                 <Pressable
                                                     style={styles.primaryButton}
                                                     onPress={redefinirSenhaRecuperada}
@@ -1767,21 +1782,6 @@ const redefinirPinRecuperado = async () => {
                 </View>
             </Modal>
         </MobileFrame>
-    );
-}
-
-function PasswordRule({ label, valid }) {
-    return (
-        <View style={styles.passwordRuleRow}>
-            <MaterialCommunityIcons
-                name={valid ? 'check-circle' : 'circle-outline'}
-                size={15}
-                color={valid ? '#4CAF50' : '#7C7C82'}
-            />
-            <Text style={[styles.passwordRuleText, valid && styles.passwordRuleTextValid]}>
-                {label}
-            </Text>
-        </View>
     );
 }
 

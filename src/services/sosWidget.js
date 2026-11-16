@@ -17,6 +17,7 @@ import { ACTIVE_SOS_SESSION_KEY, stopSosTracking } from './sosTracking';
 export const SOS_WIDGET_ID = 'guardia-sos';
 export const PENDING_SOS_STORAGE_KEY = '@guardia/pending-sos';
 export const SOS_WIDGET_ENABLED_KEY = '@guardia/sos-widget-enabled';
+let runtimeCustomization = null;
 
 export function SosBubble({ close }) {
     const [customization, setCustomization] = React.useState({});
@@ -29,7 +30,7 @@ export function SosBubble({ close }) {
             AsyncStorage.getItem(ACTIVE_SOS_SESSION_KEY),
         ]).then(([savedCustomization, activeSession]) => {
             if (!mounted) return;
-            setCustomization(savedCustomization ? JSON.parse(savedCustomization) : {});
+            setCustomization(runtimeCustomization || (savedCustomization ? JSON.parse(savedCustomization) : {}));
             setIsActive(Boolean(activeSession));
         }).catch((error) => {
             console.error('Erro ao carregar personalização do widget:', error);
@@ -42,6 +43,15 @@ export function SosBubble({ close }) {
     const handlePress = async () => {
         const activeSession = await AsyncStorage.getItem(ACTIVE_SOS_SESSION_KEY);
         const pendingSos = await AsyncStorage.getItem(PENDING_SOS_STORAGE_KEY);
+        const storedUser = await AsyncStorage.getItem('@guardia/auth_user');
+        const user = storedUser ? JSON.parse(storedUser) : null;
+        if (!user?.id) {
+            await AsyncStorage.multiRemove([SOS_WIDGET_ENABLED_KEY, PENDING_SOS_STORAGE_KEY]);
+            disableSosWidget();
+            if (navigationRef.isReady()) navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] });
+            await openApp();
+            return;
+        }
         if (activeSession || pendingSos === 'true') {
             try {
                 if (activeSession) {
@@ -114,8 +124,21 @@ export async function restoreSosWidget() {
     return true;
 }
 
+export async function refreshSosWidget(customization) {
+    if (Platform.OS !== 'android') return false;
+    runtimeCustomization = customization;
+    setBubbleRendererForBubble(SOS_WIDGET_ID, SosBubble);
+    if (canDrawOverlays()) {
+        closeBubble(SOS_WIDGET_ID);
+        await showBubble(SOS_WIDGET_ID, { edgeHideEnabled: true });
+        return true;
+    }
+    return false;
+}
+
 export function disableSosWidget() {
     if (Platform.OS === 'android') {
+        runtimeCustomization = null;
         closeBubble(SOS_WIDGET_ID);
     }
 }

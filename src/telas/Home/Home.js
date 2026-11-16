@@ -124,14 +124,16 @@ export default function HomeScreen() {
                 await api.post('/admin/reports/sos/events', { usuario_id: user.id });
             }
 
-            if (!contacts.length) {
-                showFeedback('Nenhum contato cadastrado. Cadastre um contato de confiança antes de acionar o SOS.');
-                return;
-            }
-
             const telegramContacts = contacts.filter((contact) => contact.telegram_vinculado);
             if (!telegramContacts.length) {
-                showFeedback('Nenhum contato está vinculado ao Telegram. Abra Contatos, escolha um contato e toque em "Vincular ao Telegram".');
+                const testPhone = process.env.EXPO_PUBLIC_SOS_TEST_PHONE || '190';
+                const callMode = await callPhoneNumber(testPhone);
+                showFeedback(
+                    callMode === 'unavailable'
+                        ? 'Não foi possível iniciar a ligação de emergência neste dispositivo.'
+                        : 'Nenhum contato vinculado ao Telegram. A ligação de emergência foi iniciada.',
+                    callMode === 'unavailable' ? 'error' : 'success',
+                );
                 return;
             }
 

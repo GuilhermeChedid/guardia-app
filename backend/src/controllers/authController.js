@@ -392,7 +392,7 @@ const register = async (req, res) => {
         }
 
         // 8. Validar PIN
-        if (!/^\d{4,6}$/.test(pin_provas)) {
+        if (!/^\d{4}$/.test(pin_provas)) {
             return res.status(400).json({
                 success: false,
                 message: 'O PIN deve conter apenas números.',

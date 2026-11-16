@@ -21,6 +21,7 @@ import { usePosts } from '../../context/PostsContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
 import { formatDisplayName } from '../../utils/nameValidation';
+import { renderMarkdownText } from '../../utils/postText';
 
 const logoGuardia = require('../../assets/imagens/logo_guardia.png');
 
@@ -280,7 +281,7 @@ export default function AdminDashboardScreen() {
                             <Text style={styles.postTimeText}>{post.time}</Text>
                         </View>
                         <Text style={styles.postCardTitle}>{post.title}</Text>
-                        <Text style={styles.postCardExcerpt} numberOfLines={2}>{post.excerpt}</Text>
+                        {renderMarkdownText(post.excerpt, styles.postCardExcerpt)}
                         <View style={styles.postCardActions}>
                             <View style={styles.statsInfo}>
                                 <Text style={styles.statIconText}>♡ {post.likes}</Text>
@@ -653,9 +654,7 @@ export default function AdminDashboardScreen() {
                 </View>
             </View>
 
-            <Text style={styles.viewPostTextBody}>
-                {postContent}
-            </Text>
+            {renderMarkdownText(postContent, styles.viewPostTextBody)}
 
             <Image source={{ uri: selectedPost?.image }} style={styles.viewPostMainImage} resizeMode="cover" />
 

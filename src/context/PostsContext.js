@@ -4,6 +4,7 @@ import api from '../services/api';
 import { getAssetUrl } from '../services/api';
 import { POSTS } from '../constants/posts';
 import { formatDisplayName } from '../utils/nameValidation';
+import { normalizePostContent } from '../utils/postText';
 
 const PostsContext = createContext(null);
 
@@ -36,8 +37,8 @@ const mapPost = (post) => ({
     ...post,
     title: post.titulo,
     badge: post.categoria,
-    excerpt: post.conteudo?.split(/\n\s*\n/)[0]?.slice(0, 140) || '',
-    paragraphs: post.conteudo?.split(/\n\s*\n/).filter(Boolean) || [],
+    excerpt: normalizePostContent(post.titulo, post.conteudo)[0]?.slice(0, 140) || '',
+    paragraphs: normalizePostContent(post.titulo, post.conteudo),
     image: getSafePostImage(post),
     time: post.data_publicacao ? new Date(post.data_publicacao).toLocaleString('pt-BR') : 'Agora',
     likes: post.curtidas_count || 0,
