@@ -386,7 +386,7 @@ export default function ContatosScreen() {
                 <Modal visible={isPoliceEditVisible} transparent animationType="slide">
                     <View style={styles.modalOverlay}>
                         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined} style={styles.keyboardAvoid}>
-                            <ScrollView contentContainerStyle={styles.formScrollContent} keyboardShouldPersistTaps="handled">
+                            <ScrollView style={styles.formScroll} contentContainerStyle={styles.formScrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                             <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
                                 <View style={styles.dragIndicator} />
                                 <Text style={[styles.modalTitle, { color: colors.text }]}>Editar contato de polícia</Text>
@@ -417,7 +417,7 @@ export default function ContatosScreen() {
                 <View style={styles.modalOverlay}>
                     <Pressable style={styles.modalBackdrop} onPress={() => setAddVisible(false)} />
                     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined} style={styles.keyboardAvoid}>
-                        <ScrollView contentContainerStyle={styles.formScrollContent} keyboardShouldPersistTaps="handled">
+                        <ScrollView style={styles.formScroll} contentContainerStyle={styles.formScrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                         <View
                             style={[styles.bottomSheet, { backgroundColor: colors.surface }]}
                             onStartShouldSetResponder={() => true}
@@ -519,7 +519,7 @@ export default function ContatosScreen() {
             <Modal visible={isEditVisible} transparent animationType="slide">
                 <View style={styles.modalOverlay}>
                     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined} style={styles.keyboardAvoid}>
-                        <ScrollView contentContainerStyle={styles.formScrollContent} keyboardShouldPersistTaps="handled">
+                        <ScrollView style={styles.formScroll} contentContainerStyle={styles.formScrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                         <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
                             <View style={styles.dragIndicator} />
                             <Text style={[styles.modalTitle, { color: colors.text }]}>Editar contato</Text>
@@ -764,8 +764,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
     },
     keyboardAvoid: {
+        flex: 1,
         width: '100%',
         alignItems: 'center',
+        justifyContent: 'flex-end',
+    },
+    formScroll: {
+        flex: 1,
+        width: '100%',
     },
     formScrollContent: {
         width: '100%',

@@ -954,13 +954,26 @@ const createEvidence = async (req, res) => {
         const rule = evidenceRules[type];
         const normalizedType = type.trim();
         const isDirectText = normalizedType === 'file' && typeof content === 'string' && content.length > 0;
-        const hasBinaryContent = typeof contentBase64 === 'string' && contentBase64.length > 0;
         const normalizedName = isDirectText && !name.toLowerCase().endsWith('.txt') ? `${name}.txt` : name;
         const extension = normalizedName.split('.').pop()?.toLowerCase();
+        const uploadedFile = req.file;
+        const fileExtension = extension;
+        const uploadedMimeType = uploadedFile?.mimetype === 'application/octet-stream'
+            ? ({
+                mp4: 'video/mp4',
+                mov: 'video/quicktime',
+                mkv: 'video/x-matroska',
+                '3gp': 'video/3gpp',
+            }[fileExtension] || uploadedFile.mimetype)
+            : uploadedFile?.mimetype;
+        const uploadedContentBase64 = uploadedFile?.buffer?.toString('base64') || '';
+        const resolvedContentBase64 = uploadedContentBase64 || contentBase64;
+        const resolvedMimeType = uploadedMimeType || mimeType;
+        const hasBinaryContent = typeof resolvedContentBase64 === 'string' && resolvedContentBase64.length > 0;
         let binarySizeBytes = 0;
         if (hasBinaryContent) {
             try {
-                binarySizeBytes = Buffer.from(contentBase64, 'base64').length;
+                binarySizeBytes = Buffer.from(resolvedContentBase64, 'base64').length;
             } catch (error) {
                 return res.status(400).json({ success: false, message: 'Conteúdo do arquivo inválido.' });
             }
@@ -981,8 +994,8 @@ const createEvidence = async (req, res) => {
             description: description.trim(),
             url: url.trim(),
             content: isDirectText ? content : '',
-            contentBase64: hasBinaryContent ? contentBase64 : '',
-            mimeType: mimeType.trim(),
+            contentBase64: hasBinaryContent ? resolvedContentBase64 : '',
+            mimeType: String(resolvedMimeType || '').trim(),
         };
         const result = await client.query(
             `INSERT INTO evidencias

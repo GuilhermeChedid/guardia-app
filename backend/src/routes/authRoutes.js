@@ -60,6 +60,25 @@ const profileUpload = multer({
         callback(null, true);
     },
 });
+const evidenceUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 30 * 1024 * 1024 },
+    fileFilter: (req, file, callback) => {
+        const extension = path.extname(file.originalname).toLowerCase();
+        const allowedMimeTypes = [
+            'image/jpeg', 'image/jpg', 'image/png',
+            'video/mp4', 'video/quicktime', 'video/x-matroska', 'video/3gpp',
+            'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav',
+            'audio/aac', 'audio/ogg', 'audio/opus', 'audio/amr', 'audio/3gpp',
+            'application/octet-stream',
+        ];
+        const allowedExtensions = ['.jpg', '.jpeg', '.png', '.mp4', '.mov', '.mkv', '.3gp', '.mp3', '.wav', '.m4a', '.aac', '.ogg', '.opus', '.amr'];
+        if (!allowedMimeTypes.includes(file.mimetype) && !allowedExtensions.includes(extension)) {
+            return callback(new Error('Formato de evidência não suportado.'));
+        }
+        callback(null, true);
+    },
+});
 const handleProfileUpload = (req, res, next) => {
     profileUpload.single('photo')(req, res, (error) => {
         if (!error) {
@@ -77,6 +96,24 @@ const handleProfileUpload = (req, res, next) => {
         return res.status(400).json({
             success: false,
             message: error.message || 'Arquivo de foto inválido.',
+        });
+    });
+};
+const handleEvidenceUpload = (req, res, next) => {
+    evidenceUpload.single('file')(req, res, (error) => {
+        if (!error) {
+            next();
+            return;
+        }
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(413).json({
+                success: false,
+                message: 'O vídeo deve ter no máximo 30 MB.',
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: error.message || 'Arquivo de evidência inválido.',
         });
     });
 };
@@ -99,7 +136,7 @@ router.patch('/sos/telegram/:sessionId/location', updateTelegramSosLocation);
 router.post('/sos/telegram/:sessionId/stop', stopTelegramSos);
 router.post('/telegram/webhook', telegramWebhook);
 router.get('/evidences/:usuarioId', getEvidences);
-router.post('/evidences/:usuarioId', createEvidence);
+router.post('/evidences/:usuarioId', handleEvidenceUpload, createEvidence);
 router.put('/evidences/:usuarioId/:evidenceId', updateEvidence);
 router.delete('/evidences/:usuarioId/:evidenceId', deleteEvidence);
 router.get('/evidences/:usuarioId/history', getEvidenceHistory);

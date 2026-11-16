@@ -287,7 +287,9 @@ export default function ProvasScreen() {
 
     const pickEvidenceFiles = async () => {
         const result = await DocumentPicker.getDocumentAsync({
-            type: UPLOAD_TYPES[uploadType].mime,
+            type: uploadType === 'audio'
+                ? 'audio/*'
+                : UPLOAD_TYPES[uploadType].mime,
             multiple: true,
             copyToCacheDirectory: true,
         });
@@ -337,7 +339,11 @@ export default function ProvasScreen() {
                 ...asset,
                 name,
                 size,
-                mimeType: asset.mimeType || rules.mime,
+                mimeType: asset.mimeType && asset.mimeType !== 'application/octet-stream'
+                    ? asset.mimeType
+                    : uploadType === 'video'
+                        ? (extension === 'mov' ? 'video/quicktime' : 'video/mp4')
+                        : rules.mime,
             };
         });
         const invalid = assets.filter((asset) =>
@@ -441,9 +447,35 @@ export default function ProvasScreen() {
                         return;
                     }
                 }
-                const response = selectedFile
-                ? await api.put(`/auth/evidences/${userId}/${selectedFile.id}`, formData)
-                : await api.post(`/auth/evidences/${userId}`, payload);
+                let response;
+                if (selectedFile) {
+                    response = await api.put(`/auth/evidences/${userId}/${selectedFile.id}`, formData);
+                } else if (!isDirectText && Platform.OS !== 'web') {
+                    const multipart = new FormData();
+                    const extension = upload.name.split('.').pop()?.toLowerCase();
+                    const mimeType = upload.mimeType && upload.mimeType !== 'application/octet-stream'
+                        ? upload.mimeType
+                        : uploadType === 'video'
+                            ? (extension === 'mov' ? 'video/quicktime' : 'video/mp4')
+                            : UPLOAD_TYPES[uploadType].mime;
+                    multipart.append('name', binaryName);
+                    multipart.append('description', formData.description);
+                    multipart.append('type', uploadType);
+                    multipart.append('size', `${((upload.size || 0) / (1024 * 1024)).toFixed(2)} MB`);
+                    multipart.append('sizeBytes', String(upload.size || 0));
+                    multipart.append('mimeType', mimeType);
+                    multipart.append('file', {
+                        uri: upload.uri,
+                        name: upload.name,
+                        type: mimeType,
+                    });
+                    response = await api.post(`/auth/evidences/${userId}`, multipart, {
+                        timeout: 60000,
+                        headers: { 'Content-Type': 'multipart/form-data' },
+                    });
+                } else {
+                    response = await api.post(`/auth/evidences/${userId}`, payload, { timeout: 60000 });
+                }
                 responses.push(response.data.evidence);
             }
             const savedFiles = responses.map(decorateFile);
@@ -454,7 +486,13 @@ export default function ProvasScreen() {
             await loadHistory();
             showFeedback(selectedFile ? 'Evidência atualizada com sucesso.' : `${savedFiles.length} evidência(s) criada(s) com sucesso.`);
         } catch (error) {
-            showFeedback(error.response?.data?.message || 'Não foi possível salvar a evidência.', 'error');
+            showFeedback(
+                error.response?.data?.message
+                    || error.response?.data?.error
+                    || error.message
+                    || 'Não foi possível salvar a evidência.',
+                'error',
+            );
         } finally {
             setIsSaving(false);
         }
@@ -865,7 +903,11 @@ export default function ProvasScreen() {
                                                 <Pressable
                                                     key={type}
                                                     style={[styles.typeOption, { borderColor: colors.border }, uploadType === type && styles.typeOptionActive]}
-                                                    onPress={() => { setUploadType(type); setSelectedUploads([]); }}
+                                                    onPress={() => {
+                                                        setUploadType(type);
+                                                        setSelectedUploads([]);
+                                                        setFormData((current) => ({ ...current, name: '', content: '' }));
+                                                    }}
                                                 >
                                                     <Text style={[styles.typeOptionText, { color: colors.text }, uploadType === type && styles.typeOptionTextActive]}>
                                                         {rule.label}
@@ -1333,11 +1375,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
     },
     keyboardAvoid: {
+        flex: 1,
         width: '100%',
         alignItems: 'center',
         alignSelf: 'stretch',
+        justifyContent: 'flex-end',
     },
     formScroll: {
+        flex: 1,
         width: '100%',
         alignSelf: 'stretch',
     },
