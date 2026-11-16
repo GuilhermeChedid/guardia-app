@@ -219,7 +219,7 @@ export default function CadastroScreen() {
         ];
 
         if (requirements.some((valid) => !valid)) {
-            return MESSAGES.MSG06;
+            return REGISTER_MESSAGES.MSG06;
         }
 
         return null;
@@ -416,7 +416,7 @@ export default function CadastroScreen() {
 
         // RN09 - Aceite obrigatório dos termos
         if (!termsAccepted) {
-            errors.terms = MESSAGES.MSG03;
+            errors.terms = REGISTER_MESSAGES.MSG03;
         }
 
         setFieldErrors(errors);

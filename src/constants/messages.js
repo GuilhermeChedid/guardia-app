@@ -1,7 +1,7 @@
 export const MESSAGES = {
     MSG01: 'Preencha todos os campos obrigatórios.',
     MSG02: 'E-mail inválido.',
-    MSG03: 'Senha inválida. Use pelo menos 8 caracteres.',
+    MSG03: 'Senha inválida.',
     MSG04: 'CPF inválido.',
     MSG05: 'Cadastro realizado com sucesso.',
     MSG06: 'Credenciais incorretas.',
