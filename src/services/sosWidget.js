@@ -11,7 +11,7 @@ import {
 } from 'expo-draw-over-apps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { navigationRef } from '../navigation/AppNavigator';
+import { navigationRef } from '../navigation/navigationRef';
 import { ACTIVE_SOS_SESSION_KEY, stopSosTracking } from './sosTracking';
 
 export const SOS_WIDGET_ID = 'guardia-sos';
@@ -126,10 +126,11 @@ export async function restoreSosWidget() {
 
 export async function refreshSosWidget(customization) {
     if (Platform.OS !== 'android') return false;
-    runtimeCustomization = customization;
+    runtimeCustomization = { ...customization };
     setBubbleRendererForBubble(SOS_WIDGET_ID, SosBubble);
     if (canDrawOverlays()) {
         closeBubble(SOS_WIDGET_ID);
+        await new Promise((resolve) => setTimeout(resolve, 100));
         await showBubble(SOS_WIDGET_ID, { edgeHideEnabled: true });
         return true;
     }

@@ -17,7 +17,7 @@ import { Asset } from 'expo-asset';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import PdfModal from '../../components/PdfModal/PdfModal';
-import { useTheme } from '../../context/ThemeContext';
+import { darkColors } from '../../context/ThemeContext';
 import { MARITAL_STATUS_OPTIONS } from '../../constants/profileOptions';
 import { MESSAGES } from '../../constants/messages';
 import { cepMask, cpfMask, phoneMask } from '../../utils/masks';
@@ -56,7 +56,7 @@ const LOCAL_MESSAGES = {
 
 export default function CadastroScreen() {
     const navigation = useNavigation();
-    const { colors } = useTheme();
+    const colors = darkColors;
 
     useEffect(() => {
         if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -214,7 +214,7 @@ export default function CadastroScreen() {
             /[A-Z]/.test(value),
             /[a-z]/.test(value),
             /\d/.test(value),
-            /[!@#$%&*_-]/.test(value),
+            /[!@#$%&*_.-]/.test(value),
             !/\s/.test(value),
         ];
 

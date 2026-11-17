@@ -471,7 +471,6 @@ export default function ProvasScreen() {
                     });
                     response = await api.post(`/auth/evidences/${userId}`, multipart, {
                         timeout: 60000,
-                        headers: { 'Content-Type': 'multipart/form-data' },
                     });
                 } else {
                     response = await api.post(`/auth/evidences/${userId}`, payload, { timeout: 60000 });

@@ -947,7 +947,8 @@ const createEvidence = async (req, res) => {
             content = '',
             contentBase64 = '',
             mimeType = '',
-        } = req.body;
+            requestedSizeBytes = 0,
+        } = req.body || {};
         if (!name?.trim() || !type?.trim()) {
             return res.status(400).json({ success: false, message: 'Nome e tipo da evidência são obrigatórios.' });
         }
@@ -982,7 +983,7 @@ const createEvidence = async (req, res) => {
             ? Buffer.byteLength(content, 'utf8')
             : hasBinaryContent
                 ? binarySizeBytes
-                : Number(req.body.sizeBytes || 0);
+                : Number(requestedSizeBytes || 0);
         if (!rule || !rule.extensions.includes(extension) || !sizeBytes || sizeBytes > rule.maxBytes) {
             return res.status(400).json({
                 success: false,

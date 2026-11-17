@@ -27,7 +27,7 @@ const passwordRules = [
     { label: '1 letra maiúscula', test: (password) => /[A-Z]/.test(password) },
     { label: '1 letra minúscula', test: (password) => /[a-z]/.test(password) },
     { label: '1 número', test: (password) => /\d/.test(password) },
-    { label: '1 caractere especial (!@#$%&*_-)', test: (password) => /[!@#$%&*_-]/.test(password) },
+    { label: '1 caractere especial (!@#$%&*_.-)', test: (password) => /[!@#$%&*_.-]/.test(password) },
 ];
 
 export default function LoginScreen() {
@@ -284,7 +284,7 @@ export default function LoginScreen() {
                 message:
                     'A senha deve ter no mínimo 8 caracteres, ' +
                     'letras maiúscula e minúscula, número e ' +
-                    'caractere especial (!@#$%&*_-).',
+                    'caractere especial (!@#$%&*_.-).',
             });
             return;
         }

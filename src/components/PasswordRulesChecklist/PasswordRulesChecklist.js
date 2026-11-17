@@ -7,7 +7,7 @@ export const PASSWORD_RULES = [
     { label: '1 letra maiúscula', test: (password) => /[A-Z]/.test(password) },
     { label: '1 letra minúscula', test: (password) => /[a-z]/.test(password) },
     { label: '1 número', test: (password) => /\d/.test(password) },
-    { label: '1 caractere especial (!@#$%&*_-)', test: (password) => /[!@#$%&*_-]/.test(password) },
+    { label: '1 caractere especial (!@#$%&*_.-)', test: (password) => /[!@#$%&*_.-]/.test(password) },
     { label: 'Não possuir espaços', test: (password) => password.length > 0 && !/\s/.test(password) },
 ];
 
