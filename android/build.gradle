@@ -25,6 +25,17 @@ apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
 
 subprojects {
+    plugins.withId("com.android.library") {
+        android {
+            defaultConfig {
+                externalNativeBuild {
+                    cmake {
+                        arguments "-DANDROID_STL=c++_shared", "-DCMAKE_SHARED_LINKER_FLAGS=-lc++_shared"
+                    }
+                }
+            }
+        }
+    }
     if (name == "expo-dynamic-app-icon") {
         tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
             kotlinOptions {
