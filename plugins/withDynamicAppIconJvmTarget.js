@@ -38,9 +38,7 @@ module.exports = function withDynamicAppIconJvmTarget(config) {
 
         application['activity-alias'] = (application['activity-alias'] || []).map((alias) => {
             const name = alias.$?.['android:name'] || '';
-            if (name.endsWith('MainActivityguardia')) {
-                alias.$['android:enabled'] = 'true';
-            }
+            alias.$['android:enabled'] = name.endsWith('MainActivityguardia') ? 'true' : 'false';
             return alias;
         });
         return config;

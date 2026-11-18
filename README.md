@@ -46,7 +46,7 @@ Aplicativo mobile para apoio e segurança, com fluxo de login, cadastro, emergê
 Edite o arquivo `.env` para configurar a URL da API durante o desenvolvimento:
 
 ```env
-EXPO_PUBLIC_API_URL=http://localhost:3000/api
+EXPO_PUBLIC_API_URL=https://guardia-app-tan.vercel.app/api
 TELEGRAM_BOT_TOKEN=token-emitido-pelo-BotFather
 TELEGRAM_BOT_USERNAME=nome_do_bot_sem_@
 EXPO_PUBLIC_SOS_TEST_PHONE=+5561998171598

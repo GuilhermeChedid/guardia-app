@@ -21,6 +21,7 @@ import { usePosts } from '../../context/PostsContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
 import { formatDisplayName } from '../../utils/nameValidation';
+import { renderMarkdownText } from '../../utils/postText';
 
 const logoGuardia = require('../../assets/imagens/logo_guardia.png');
 
@@ -185,8 +186,8 @@ export default function AdminDashboardScreen() {
     const publishNewPost = async () => {
         const title = newPostTitle.trim();
         const paragraphs = newPostContent.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
-        if (!title || paragraphs.length === 0) {
-            showFeedback('Preencha o título e o conteúdo do post.', 'error');
+        if (!title || paragraphs.length === 0 || !newPostImage) {
+            showFeedback('Preencha o título, o conteúdo e selecione uma imagem para o post.', 'error');
             return;
         }
 
@@ -208,7 +209,7 @@ export default function AdminDashboardScreen() {
             showFeedback('Post criado com sucesso!');
             setSubView(null);
         } catch (error) {
-            showFeedback(error.response?.data?.message || 'Não foi possível criar o post.', 'error');
+            showFeedback(error.response?.data?.message || error.response?.data?.error || error.message || 'Não foi possível criar o post.', 'error');
         }
     };
 
@@ -224,16 +225,17 @@ export default function AdminDashboardScreen() {
         const extension = asset?.name?.split('.').pop()?.toLowerCase();
         const allowedExtensions = ['jpg', 'jpeg', 'png'];
         if (!asset || !allowedExtensions.includes(extension)) {
-            showFeedback('Formato inválido. Envie uma imagem JPG, JPEG ou PNG de até 5 MB.', 'error');
+            showFeedback('Formato inválido. Envie uma imagem JPG, JPEG ou PNG de até 4 MB.', 'error');
             return;
         }
-        if (asset.size && asset.size > 5 * 1024 * 1024) {
-            showFeedback('Imagem muito grande. O tamanho máximo permitido é 5 MB.', 'error');
+        if (asset.size && asset.size > 4 * 1024 * 1024) {
+            showFeedback('Imagem muito grande. O tamanho máximo permitido é 4 MB.', 'error');
             return;
         }
 
-        if (forNewPost) setNewPostImage(asset.uri);
-        else setPostImage(asset.uri);
+        const image = { uri: asset.uri, name: asset.name, mimeType: asset.mimeType };
+        if (forNewPost) setNewPostImage(image);
+        else setPostImage(image);
         showFeedback('Imagem selecionada com sucesso!');
     };
 
@@ -280,7 +282,7 @@ export default function AdminDashboardScreen() {
                             <Text style={styles.postTimeText}>{post.time}</Text>
                         </View>
                         <Text style={styles.postCardTitle}>{post.title}</Text>
-                        <Text style={styles.postCardExcerpt} numberOfLines={2}>{post.excerpt}</Text>
+                        {renderMarkdownText(post.excerpt, styles.postCardExcerpt)}
                         <View style={styles.postCardActions}>
                             <View style={styles.statsInfo}>
                                 <Text style={styles.statIconText}>♡ {post.likes}</Text>
@@ -527,11 +529,11 @@ export default function AdminDashboardScreen() {
                 <Pressable style={styles.imageUploadBox} onPress={() => pickPostImage(true)}>
                     <Text style={{ fontSize: 24, marginBottom: 8 }}>🖼️</Text>
                     {newPostImage ? (
-                        <Image source={{ uri: newPostImage }} style={styles.uploadPreviewImage} resizeMode="cover" />
+                        <Image source={{ uri: newPostImage.uri }} style={styles.uploadPreviewImage} resizeMode="cover" />
                     ) : (
                         <>
                             <Text style={styles.uploadTitle}>Toque para selecionar foto</Text>
-                            <Text style={styles.uploadSubtitle}>JPG, JPEG ou PNG · máximo 5 MB</Text>
+                            <Text style={styles.uploadSubtitle}>JPG, JPEG ou PNG · máximo 4 MB</Text>
                         </>
                     )}
                 </Pressable>
@@ -598,7 +600,7 @@ export default function AdminDashboardScreen() {
             <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>IMAGEM *</Text>
                 <Pressable style={styles.imagePreviewContainer} onPress={() => pickPostImage(false)}>
-                    <Image source={{ uri: postImage || selectedPost?.image }} style={styles.previewImageFull} resizeMode="cover" />
+                    <Image source={{ uri: typeof postImage === 'string' ? postImage : postImage?.uri || selectedPost?.image }} style={styles.previewImageFull} resizeMode="cover" />
                     <View style={styles.removeImageBadge}>
                         <Text style={{ color: '#FFF', fontSize: 12 }}>✕</Text>
                     </View>
@@ -653,9 +655,7 @@ export default function AdminDashboardScreen() {
                 </View>
             </View>
 
-            <Text style={styles.viewPostTextBody}>
-                {postContent}
-            </Text>
+            {renderMarkdownText(postContent, styles.viewPostTextBody)}
 
             <Image source={{ uri: selectedPost?.image }} style={styles.viewPostMainImage} resizeMode="cover" />
 

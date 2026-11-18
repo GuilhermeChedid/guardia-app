@@ -17,12 +17,14 @@ import { Asset } from 'expo-asset';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import PdfModal from '../../components/PdfModal/PdfModal';
-import { useTheme } from '../../context/ThemeContext';
+import { darkColors } from '../../context/ThemeContext';
 import { MARITAL_STATUS_OPTIONS } from '../../constants/profileOptions';
 import { MESSAGES } from '../../constants/messages';
 import { cepMask, cpfMask, phoneMask } from '../../utils/masks';
 import { isValidCPF, isValidCEP } from '../../utils/validators';
 import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
+import PasswordRulesChecklist from '../../components/PasswordRulesChecklist/PasswordRulesChecklist';
+import { MESSAGES as REGISTER_MESSAGES } from '../../constants/messagescadastro';
 
 const TERMS_FILE = require('../../assets/termos-de-uso.pdf');
 
@@ -54,7 +56,7 @@ const LOCAL_MESSAGES = {
 
 export default function CadastroScreen() {
     const navigation = useNavigation();
-    const { colors } = useTheme();
+    const colors = darkColors;
 
     useEffect(() => {
         if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -212,12 +214,12 @@ export default function CadastroScreen() {
             /[A-Z]/.test(value),
             /[a-z]/.test(value),
             /\d/.test(value),
-            /[!@#$%&*_-]/.test(value),
+            /[!@#$%&*_.-]/.test(value),
             !/\s/.test(value),
         ];
 
         if (requirements.some((valid) => !valid)) {
-            return MESSAGES.MSG06;
+            return REGISTER_MESSAGES.MSG06;
         }
 
         return null;
@@ -414,7 +416,7 @@ export default function CadastroScreen() {
 
         // RN09 - Aceite obrigatório dos termos
         if (!termsAccepted) {
-            errors.terms = MESSAGES.MSG03;
+            errors.terms = REGISTER_MESSAGES.MSG03;
         }
 
         setFieldErrors(errors);
@@ -424,11 +426,7 @@ export default function CadastroScreen() {
 
         if (errorMessages.length > 0) {
             // RN07 - Se houver campo obrigatório vazio, destaca a MSG02 no banner
-            showFeedback(
-                errorMessages.includes(MESSAGES.MSG02)
-                    ? MESSAGES.MSG02
-                    : errorMessages[0]
-            );
+            showFeedback(errorMessages[0]);
             return;
         }
 
@@ -472,7 +470,7 @@ export default function CadastroScreen() {
             registered = true;
 
             // MSG01 - Conta criada com sucesso
-            showFeedback(MESSAGES.MSG01, 'success');
+            showFeedback(REGISTER_MESSAGES.MSG01, 'success');
 
             // Aguarda para que o usuário consiga ler a MSG01 antes de sair da tela
             navigationTimer.current = setTimeout(() => {
@@ -482,18 +480,11 @@ export default function CadastroScreen() {
         } catch (error) {
             console.error('Erro no cadastro:', error);
 
-            const status = error.response?.status;
-
-            if (!error.response || status >= 500) {
-                // MSG14 - Sistema indisponível, tente novamente
-                showFeedback(MESSAGES.MSG14);
-
-            } else {
-                // MSG07 - Erro ao cadastrar. Tente novamente mais tarde
-                // Obs.: o documento ainda não define mensagem específica
-                // para e-mail/CPF já cadastrado (status 409).
-                showFeedback(MESSAGES.MSG07);
-            }
+            showFeedback(
+                error.response?.data?.message
+                    || error.response?.data?.mensagem
+                    || (!error.response ? MESSAGES.MSG14 : REGISTER_MESSAGES.MSG07)
+            );
 
         } finally {
             // Mantém o botão bloqueado após o sucesso para evitar cadastro duplicado
@@ -907,42 +898,7 @@ export default function CadastroScreen() {
                             <FieldError message={fieldErrors.password} />
 
                             {/* REQUISITOS DA SENHA */}
-                            <View style={styles.rules}>
-
-                                <PasswordRule
-                                    label="Mínimo 8 caracteres"
-                                    valid={password.length >= 8}
-                                />
-
-                                <PasswordRule
-                                    label="1 letra maiúscula"
-                                    valid={/[A-Z]/.test(password)}
-                                />
-
-                                <PasswordRule
-                                    label="1 letra minúscula"
-                                    valid={/[a-z]/.test(password)}
-                                />
-
-                                <PasswordRule
-                                    label="1 número"
-                                    valid={/\d/.test(password)}
-                                />
-
-                                <PasswordRule
-                                    label="1 caractere especial (!@#$%&*_-)"
-                                    valid={/[!@#$%&*_-]/.test(password)}
-                                />
-
-                                <PasswordRule
-                                    label="Não possuir espaços"
-                                    valid={
-                                        password.length > 0 &&
-                                        !/\s/.test(password)
-                                    }
-                                />
-
-                            </View>
+                            <PasswordRulesChecklist password={password} style={styles.rules} />
 
                         </View>
 
@@ -1508,30 +1464,6 @@ function FieldError({ message }) {
         <Text style={styles.fieldError}>
             {message}
         </Text>
-    );
-}
-
-// COMPONENTE: REQUISITOS DA SENHA
-function PasswordRule({ label, valid }) {
-    return (
-        <View style={styles.ruleRow}>
-
-            <MaterialCommunityIcons
-                name={valid ? 'check-circle' : 'circle-outline'}
-                size={15}
-                color={valid ? '#4CAF50' : '#7C7C82'}
-            />
-
-            <Text
-                style={[
-                    styles.rule,
-                    valid && styles.ruleValid
-                ]}
-            >
-                {label}
-            </Text>
-
-        </View>
     );
 }
 

@@ -71,6 +71,9 @@
         "projectId": "4d7a5f43-b8f1-4e32-8886-c31c623b22f9"
       }
     },
-    "owner": "guilhermechedids-team"
+    "owner": "guilhermechedids-team",
+    "web": {
+      "bundler": "metro"
+    }
   }
 }

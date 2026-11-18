@@ -9,7 +9,7 @@ import {
     Text,
     TextInput,
     View,
-    KeyboardAvoidingView,
+    Keyboard,
     Platform,
     Linking
 } from 'react-native';
@@ -24,6 +24,7 @@ import * as Sharing from 'expo-sharing';
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import { useTheme } from '../../context/ThemeContext';
 import BottomNav from '../../components/BottomNav/BottomNav';
+import KeyboardSheetModal from '../../components/KeyboardSheetModal/KeyboardSheetModal';
 import api from '../../services/api';
 
 const FILTERS = ['Todos', 'Fotos', 'Vídeos', 'Áudios', 'Arquivos'];
@@ -34,6 +35,20 @@ const UPLOAD_TYPES = {
     file: { label: 'Texto', extensions: ['txt'], maxBytes: 5 * 1024 * 1024, limit: '5 MB', mime: 'text/plain' },
 };
 const WEB_EVIDENCE_MAX_BYTES = 3 * 1024 * 1024;
+// The API returns evidence content as Base64; leave room under Vercel's 4.5 MB request/response cap.
+const VERCEL_EVIDENCE_MAX_BYTES = 3 * 1024 * 1024;
+const getEvidenceUploadRule = (type) => {
+    const rule = UPLOAD_TYPES[type];
+    const usesLimitedRequestBody = Platform.OS === 'web' || api.defaults.baseURL.includes('vercel.app');
+    const maxBytes = usesLimitedRequestBody
+        ? Math.min(rule.maxBytes, VERCEL_EVIDENCE_MAX_BYTES)
+        : rule.maxBytes;
+    return {
+        ...rule,
+        maxBytes,
+        limit: maxBytes < rule.maxBytes ? '3 MB' : rule.limit,
+    };
+};
 
 export default function ProvasScreen() {
     const { colors } = useTheme();
@@ -74,7 +89,6 @@ export default function ProvasScreen() {
     const [selectedFile, setSelectedFile] = useState(null);
     const [formData, setFormData] = useState({ name: '', description: '', content: '' });
     const optionsSheetAnim = useRef(new Animated.Value(320)).current;
-    const editSheetAnim = useRef(new Animated.Value(320)).current;
 
     const showFeedback = useCallback((message, type = 'success') => {
         setFeedback({ message, type });
@@ -254,18 +268,7 @@ export default function ProvasScreen() {
             content: selectedFile.content || '',
         });
         setOptionsVisible(false);
-        editSheetAnim.setValue(320);
-        setTimeout(() => {
-            setEditVisible(true);
-            requestAnimationFrame(() => {
-                Animated.spring(editSheetAnim, {
-                    toValue: 0,
-                    useNativeDriver: true,
-                    damping: 20,
-                    stiffness: 180,
-                }).start();
-            });
-        }, 300);
+        setTimeout(() => setEditVisible(true), 300);
     };
 
     const openCreate = () => {
@@ -273,27 +276,20 @@ export default function ProvasScreen() {
         setFormData({ name: '', description: '', content: '' });
         setUploadType('image');
         setSelectedUploads([]);
-        editSheetAnim.setValue(320);
         setEditVisible(true);
-        requestAnimationFrame(() => {
-            Animated.spring(editSheetAnim, {
-                toValue: 0,
-                useNativeDriver: true,
-                damping: 20,
-                stiffness: 180,
-            }).start();
-        });
     };
 
     const pickEvidenceFiles = async () => {
         const result = await DocumentPicker.getDocumentAsync({
-            type: UPLOAD_TYPES[uploadType].mime,
+            type: uploadType === 'audio'
+                ? 'audio/*'
+                : UPLOAD_TYPES[uploadType].mime,
             multiple: true,
             copyToCacheDirectory: true,
         });
         if (result.canceled) return;
 
-        const rules = UPLOAD_TYPES[uploadType];
+        const rules = getEvidenceUploadRule(uploadType);
         const invalid = result.assets.filter((asset) => {
             const extension = asset.name.split('.').pop()?.toLowerCase();
             return !rules.extensions.includes(extension) || (asset.size ?? 0) > rules.maxBytes;
@@ -325,7 +321,7 @@ export default function ProvasScreen() {
         });
         if (result.canceled) return;
 
-        const rules = UPLOAD_TYPES[uploadType];
+        const rules = getEvidenceUploadRule(uploadType);
         const assets = result.assets.map((asset) => {
             const extension = (asset.fileName || asset.uri.split('.').pop() || (uploadType === 'image' ? 'jpg' : 'mp4'))
                 .split('.')
@@ -337,7 +333,11 @@ export default function ProvasScreen() {
                 ...asset,
                 name,
                 size,
-                mimeType: asset.mimeType || rules.mime,
+                mimeType: asset.mimeType && asset.mimeType !== 'application/octet-stream'
+                    ? asset.mimeType
+                    : uploadType === 'video'
+                        ? (extension === 'mov' ? 'video/quicktime' : 'video/mp4')
+                        : rules.mime,
             };
         });
         const invalid = assets.filter((asset) =>
@@ -411,7 +411,7 @@ export default function ProvasScreen() {
                 const binaryName = uploads.length === 1 && typedName
                     ? (typedName.includes('.') ? typedName : `${typedName}${originalExtension ? `.${originalExtension}` : ''}`)
                     : originalName;
-                const payload = selectedFile
+            const payload = selectedFile
                     ? formData
                     : isDirectText
                         ? {
@@ -429,7 +429,7 @@ export default function ProvasScreen() {
                         sizeBytes: upload.size || 0,
                         size: `${((upload.size || 0) / (1024 * 1024)).toFixed(2)} MB`,
                         url: upload.uri,
-                        contentBase64: await readAssetAsBase64(upload),
+                        contentBase64: Platform.OS === 'web' ? await readAssetAsBase64(upload) : '',
                         mimeType: upload.mimeType || UPLOAD_TYPES[uploadType].mime,
                     };
                 if (Platform.OS === 'web' && !isDirectText) {
@@ -441,9 +441,35 @@ export default function ProvasScreen() {
                         return;
                     }
                 }
-                const response = selectedFile
-                ? await api.put(`/auth/evidences/${userId}/${selectedFile.id}`, formData)
-                : await api.post(`/auth/evidences/${userId}`, payload);
+                let response;
+                if (selectedFile) {
+                    response = await api.put(`/auth/evidences/${userId}/${selectedFile.id}`, formData);
+                } else if (!isDirectText && Platform.OS !== 'web') {
+                    const multipart = new FormData();
+                    const extension = upload.name.split('.').pop()?.toLowerCase();
+                    const mimeType = upload.mimeType && upload.mimeType !== 'application/octet-stream'
+                        ? upload.mimeType
+                        : uploadType === 'video'
+                            ? (extension === 'mov' ? 'video/quicktime' : 'video/mp4')
+                            : getEvidenceUploadRule(uploadType).mime;
+                    multipart.append('name', binaryName);
+                    multipart.append('description', formData.description);
+                    multipart.append('type', uploadType);
+                    multipart.append('size', `${((upload.size || 0) / (1024 * 1024)).toFixed(2)} MB`);
+                    multipart.append('sizeBytes', String(upload.size || 0));
+                    multipart.append('mimeType', mimeType);
+                    multipart.append('file', {
+                        uri: upload.uri,
+                        name: upload.name,
+                        type: mimeType,
+                    });
+                    response = await api.post(`/auth/evidences/${userId}`, multipart, {
+                        timeout: 60000,
+                        headers: { 'Content-Type': 'multipart/form-data' },
+                    });
+                } else {
+                    response = await api.post(`/auth/evidences/${userId}`, payload, { timeout: 60000 });
+                }
                 responses.push(response.data.evidence);
             }
             const savedFiles = responses.map(decorateFile);
@@ -454,7 +480,13 @@ export default function ProvasScreen() {
             await loadHistory();
             showFeedback(selectedFile ? 'Evidência atualizada com sucesso.' : `${savedFiles.length} evidência(s) criada(s) com sucesso.`);
         } catch (error) {
-            showFeedback(error.response?.data?.message || 'Não foi possível salvar a evidência.', 'error');
+            showFeedback(
+                error.response?.data?.message
+                    || error.response?.data?.error
+                    || error.message
+                    || 'Não foi possível salvar a evidência.',
+                'error',
+            );
         } finally {
             setIsSaving(false);
         }
@@ -572,11 +604,8 @@ export default function ProvasScreen() {
     };
 
     const closeEdit = () => {
-        Animated.timing(editSheetAnim, {
-            toValue: 320,
-            duration: 180,
-            useNativeDriver: true,
-        }).start(() => setEditVisible(false));
+        Keyboard.dismiss();
+        setEditVisible(false);
     };
 
     const openDelete = () => {
@@ -842,120 +871,113 @@ export default function ProvasScreen() {
             </Modal>
 
             {/* Modal: Editar Evidência */}
-            <Modal visible={isEditVisible} transparent animationType="none" onRequestClose={closeEdit}>
-                <View style={styles.modalOverlay}>
-                    <Pressable style={styles.modalBackdrop} onPress={closeEdit} />
-                    <Animated.View style={{ transform: [{ translateY: editSheetAnim }], width: '100%' }} onStartShouldSetResponder={() => true}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardAvoid}>
-                            <ScrollView
-                                style={styles.formScroll}
-                                contentContainerStyle={styles.formScrollContent}
-                                keyboardShouldPersistTaps="handled"
-                                showsVerticalScrollIndicator={false}
-                            >
-                            <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
-                                <View style={styles.dragIndicator} />
-                                <Text style={[styles.modalTitle, { color: colors.text }]}>{selectedFile ? 'Editar evidência' : 'Nova evidência'}</Text>
+            <KeyboardSheetModal
+                visible={isEditVisible}
+                onClose={closeEdit}
+                sheetStyle={{ backgroundColor: colors.surface }}
+            >
+                <View style={styles.dragIndicator} />
+                <Text style={[styles.modalTitle, { color: colors.text }]}>{selectedFile ? 'Editar evidência' : 'Nova evidência'}</Text>
 
-                                {!selectedFile && (
-                                    <>
-                                        <Text style={styles.inputLabel}>TIPO DE EVIDÊNCIA</Text>
-                                        <View style={styles.typeSelector}>
-                                            {Object.entries(UPLOAD_TYPES).map(([type, rule]) => (
-                                                <Pressable
-                                                    key={type}
-                                                    style={[styles.typeOption, { borderColor: colors.border }, uploadType === type && styles.typeOptionActive]}
-                                                    onPress={() => { setUploadType(type); setSelectedUploads([]); }}
-                                                >
-                                                    <Text style={[styles.typeOptionText, { color: colors.text }, uploadType === type && styles.typeOptionTextActive]}>
-                                                        {rule.label}
-                                                    </Text>
-                                                </Pressable>
-                                            ))}
-                                        </View>
-                                        <Text style={[styles.allowedFormats, { color: colors.muted }]}>
-                                            {UPLOAD_TYPES[uploadType].extensions.join(', ').toUpperCase()} · máximo {UPLOAD_TYPES[uploadType].limit} por arquivo
-                                        </Text>
-                                        {uploadType === 'file' ? (
-                                            <Text style={[styles.allowedFormats, { color: colors.muted }]}>
-                                                Para Texto, digite o conteúdo abaixo e o app criará um arquivo .txt automaticamente.
-                                            </Text>
-                                        ) : (
-                                            <View style={styles.filePickerActions}>
-                                                <Pressable
-                                                    style={[styles.chooseFileBtn, { borderColor: colors.border }]}
-                                                    onPress={pickEvidenceFiles}
-                                                >
-                                                    <Feather name="paperclip" size={18} color="#23A862" />
-                                                    <Text style={[styles.chooseFileText, { color: colors.text }]}>
-                                                        {selectedUploads.length ? `${selectedUploads.length} arquivo(s) selecionado(s)` : 'Arquivos'}
-                                                    </Text>
-                                                </Pressable>
-                                                {(uploadType === 'image' || uploadType === 'video') && (
-                                                    <Pressable
-                                                        style={[styles.chooseFileBtn, styles.galleryFileBtn]}
-                                                        onPress={pickMediaFromLibrary}
-                                                    >
-                                                        <Feather name="image" size={18} color="#23A862" />
-                                                        <Text style={[styles.chooseFileText, { color: colors.text }]}>Galeria</Text>
-                                                    </Pressable>
-                                                )}
-                                            </View>
-                                        )}
-                                    </>
-                                )}
-
-                                <Text style={styles.inputLabel}>NOME DO ARQUIVO</Text>
-                                <TextInput
-                                    style={[styles.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
-                                    value={formData.name}
-                                    onChangeText={(t) => setFormData({ ...formData, name: t })}
-                                    placeholder="Digite o nome da evidência"
-                                    placeholderTextColor="#8E8E93"
-                                    editable
-                                    autoCapitalize="sentences"
-                                    returnKeyType="done"
-                                />
-
-                                <Text style={styles.inputLabel}>DESCRIÇÃO</Text>
-                                <TextInput
-                                    style={[styles.input, styles.textArea, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
-                                    value={formData.description}
-                                    onChangeText={(t) => setFormData({ ...formData, description: t })}
-                                    placeholderTextColor="#8E8E93"
-                                    multiline
-                                    textAlignVertical="top"
-                                />
-
-                                {(!selectedFile && uploadType === 'file') && (
-                                    <>
-                                        <Text style={styles.inputLabel}>CONTEÚDO DO ARQUIVO TXT</Text>
-                                        <TextInput
-                                            style={[styles.input, styles.textArea, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
-                                            value={formData.content}
-                                            onChangeText={(content) => setFormData({ ...formData, content })}
-                                            placeholder="Digite o conteúdo que será salvo no arquivo .txt"
-                                            placeholderTextColor="#8E8E93"
-                                            multiline
-                                            textAlignVertical="top"
-                                        />
-                                    </>
-                                )}
-
-                                <View style={styles.modalActions}>
-                                    <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={closeEdit}>
-                                        <Text style={styles.cancelBtnText}>Cancelar</Text>
+                {!selectedFile && (
+                    <>
+                        <Text style={styles.inputLabel}>TIPO DE EVIDÊNCIA</Text>
+                        <View style={styles.typeSelector}>
+                            {Object.entries(UPLOAD_TYPES).map(([type, rule]) => (
+                                <Pressable
+                                    key={type}
+                                    style={[styles.typeOption, { borderColor: colors.border }, uploadType === type && styles.typeOptionActive]}
+                                    onPress={() => {
+                                        Keyboard.dismiss();
+                                        setUploadType(type);
+                                        setSelectedUploads([]);
+                                        setFormData((current) => ({ ...current, name: '', content: '' }));
+                                    }}
+                                >
+                                    <Text style={[styles.typeOptionText, { color: colors.text }, uploadType === type && styles.typeOptionTextActive]}>
+                                        {rule.label}
+                                    </Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                        <Text style={[styles.allowedFormats, { color: colors.muted }]}>
+                            {getEvidenceUploadRule(uploadType).extensions.join(', ').toUpperCase()} · máximo {getEvidenceUploadRule(uploadType).limit} por arquivo
+                        </Text>
+                        {uploadType === 'file' ? (
+                            <Text style={[styles.allowedFormats, { color: colors.muted }]}>
+                                Para Texto, digite o conteúdo abaixo e o app criará um arquivo .txt automaticamente.
+                            </Text>
+                        ) : (
+                            <View style={styles.filePickerActions}>
+                                <Pressable
+                                    style={[styles.chooseFileBtn, { borderColor: colors.border }]}
+                                    onPress={() => { Keyboard.dismiss(); pickEvidenceFiles(); }}
+                                >
+                                    <Feather name="paperclip" size={18} color="#23A862" />
+                                    <Text style={[styles.chooseFileText, { color: colors.text }]}>
+                                        {selectedUploads.length ? `${selectedUploads.length} arquivo(s) selecionado(s)` : 'Arquivos'}
+                                    </Text>
+                                </Pressable>
+                                {(uploadType === 'image' || uploadType === 'video') && (
+                                    <Pressable
+                                        style={[styles.chooseFileBtn, styles.galleryFileBtn]}
+                                        onPress={() => { Keyboard.dismiss(); pickMediaFromLibrary(); }}
+                                    >
+                                        <Feather name="image" size={18} color="#23A862" />
+                                        <Text style={[styles.chooseFileText, { color: colors.text }]}>Galeria</Text>
                                     </Pressable>
-                                    <Pressable style={[styles.primaryBtn, isSaving && styles.disabledBtn]} onPress={saveEvidence} disabled={isSaving}>
-                                        <Text style={styles.primaryBtnText}>{isSaving ? 'Salvando...' : selectedFile ? 'Salvar' : 'Criar'}</Text>
-                                    </Pressable>
-                                </View>
+                                )}
                             </View>
-                            </ScrollView>
-                        </KeyboardAvoidingView>
-                    </Animated.View>
+                        )}
+                    </>
+                )}
+
+                <Text style={styles.inputLabel}>NOME DO ARQUIVO</Text>
+                <TextInput
+                    style={[styles.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
+                    value={formData.name}
+                    onChangeText={(t) => setFormData({ ...formData, name: t })}
+                    placeholder="Digite o nome da evidência"
+                    placeholderTextColor="#8E8E93"
+                    editable
+                    autoCapitalize="sentences"
+                    returnKeyType="done"
+                />
+
+                <Text style={styles.inputLabel}>DESCRIÇÃO</Text>
+                <TextInput
+                    style={[styles.input, styles.textArea, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
+                    value={formData.description}
+                    onChangeText={(t) => setFormData({ ...formData, description: t })}
+                    placeholderTextColor="#8E8E93"
+                    multiline
+                    textAlignVertical="top"
+                />
+
+                {(!selectedFile && uploadType === 'file') && (
+                    <>
+                        <Text style={styles.inputLabel}>CONTEÚDO DO ARQUIVO TXT</Text>
+                        <TextInput
+                            style={[styles.input, styles.textArea, { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
+                            value={formData.content}
+                            onChangeText={(content) => setFormData({ ...formData, content })}
+                            placeholder="Digite o conteúdo que será salvo no arquivo .txt"
+                            placeholderTextColor="#8E8E93"
+                            multiline
+                            textAlignVertical="top"
+                        />
+                    </>
+                )}
+
+                <View style={styles.modalActions}>
+                    <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={closeEdit}>
+                        <Text style={styles.cancelBtnText}>Cancelar</Text>
+                    </Pressable>
+                    <Pressable style={[styles.primaryBtn, isSaving && styles.disabledBtn]} onPress={saveEvidence} disabled={isSaving}>
+                        <Text style={styles.primaryBtnText}>{isSaving ? 'Salvando...' : selectedFile ? 'Salvar' : 'Criar'}</Text>
+                    </Pressable>
                 </View>
-            </Modal>
+            </KeyboardSheetModal>
 
             {/* Modal: Excluir Evidência */}
             <Modal visible={isDeleteVisible} transparent animationType="fade">
@@ -1331,21 +1353,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: 24,
-    },
-    keyboardAvoid: {
-        width: '100%',
-        alignItems: 'center',
-        alignSelf: 'stretch',
-    },
-    formScroll: {
-        width: '100%',
-        alignSelf: 'stretch',
-    },
-    formScrollContent: {
-        flexGrow: 1,
-        justifyContent: 'flex-end',
-        width: '100%',
-        alignItems: 'center',
     },
     bottomSheet: {
         backgroundColor: '#1C1C1E',

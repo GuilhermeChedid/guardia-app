@@ -9,7 +9,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const app = express();
 
 app.use(cors());
-app.use(express.json({ limit: '8mb' }));
+app.use(express.json({ limit: '45mb' }));
 app.use(
     '/uploads',
     express.static(

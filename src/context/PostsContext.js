@@ -1,9 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 import { getAssetUrl } from '../services/api';
 import { POSTS } from '../constants/posts';
 import { formatDisplayName } from '../utils/nameValidation';
+import { normalizePostContent } from '../utils/postText';
 
 const PostsContext = createContext(null);
 
@@ -36,8 +38,8 @@ const mapPost = (post) => ({
     ...post,
     title: post.titulo,
     badge: post.categoria,
-    excerpt: post.conteudo?.split(/\n\s*\n/)[0]?.slice(0, 140) || '',
-    paragraphs: post.conteudo?.split(/\n\s*\n/).filter(Boolean) || [],
+    excerpt: normalizePostContent(post.titulo, post.conteudo)[0]?.slice(0, 140) || '',
+    paragraphs: normalizePostContent(post.titulo, post.conteudo),
     image: getSafePostImage(post),
     time: post.data_publicacao ? new Date(post.data_publicacao).toLocaleString('pt-BR') : 'Agora',
     likes: post.curtidas_count || 0,
@@ -91,17 +93,38 @@ export function PostsProvider({ children }) {
         await refreshPosts();
     };
 
-    const uploadPostImage = async (uri, adminId) => {
+    const uploadPostImage = async (asset, adminId) => {
+        const uri = typeof asset === 'string' ? asset : asset?.uri;
+        if (!uri) throw new Error('Selecione uma imagem antes de publicar.');
+        if (!adminId) throw new Error('NÃ£o foi possÃ­vel identificar o administrador.');
+
+        const name = typeof asset === 'string'
+            ? `post-${Date.now()}.${asset.split('?')[0].split('.').pop()?.toLowerCase() || 'jpg'}`
+            : asset.name || asset.fileName || `post-${Date.now()}.jpg`;
+        const extension = name.split('.').pop()?.toLowerCase();
+        const assetMimeType = typeof asset === 'object' ? asset.mimeType : null;
+        const mimeType = ['image/jpeg', 'image/jpg', 'image/png'].includes(assetMimeType)
+            ? assetMimeType
+            : extension === 'png' ? 'image/png' : 'image/jpeg';
         const formData = new FormData();
-        formData.append('admin_id', adminId);
-        formData.append('image', {
-            uri,
-            name: `post-${Date.now()}.jpg`,
-            type: 'image/jpeg',
-        });
+        formData.append('admin_id', String(adminId));
+        if (Platform.OS === 'web') {
+            const fileResponse = await fetch(uri);
+            if (!fileResponse.ok) throw new Error('NÃ£o foi possÃ­vel ler a imagem selecionada.');
+            const imageBlob = await fileResponse.blob();
+            formData.append('image', new Blob([imageBlob], { type: mimeType }), name);
+        } else {
+            formData.append('image', {
+                uri,
+                name,
+                type: mimeType,
+            });
+        }
         const response = await api.post('/posts/upload-image', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 60000,
         });
+        if (!response.data?.imageUrl) throw new Error('O servidor nÃ£o retornou a imagem enviada.');
         return getAssetUrl(response.data.imageUrl);
     };
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, AppState, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -12,7 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
 import FeedbackBanner from '../../components/FeedbackBanner/FeedbackBanner';
-import { startSosTracking, stopSosTracking } from '../../services/sosTracking';
+import { ACTIVE_SOS_SESSION_KEY, startSosTracking, stopSosTracking } from '../../services/sosTracking';
 import { PENDING_SOS_STORAGE_KEY } from '../../services/sosWidget';
 import { callPhoneNumber } from '../../services/phoneCall';
 
@@ -67,6 +67,19 @@ export default function HomeScreen() {
     };
 
     useEffect(() => () => clearTimeout(feedbackTimer.current), []);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (state) => {
+            if (state !== 'active') return;
+            AsyncStorage.getItem(ACTIVE_SOS_SESSION_KEY)
+                .then((activeSession) => {
+                    setSosDispatched(Boolean(activeSession));
+                    if (activeSession) setSosCountdown(null);
+                })
+                .catch((error) => console.error('Erro ao sincronizar estado do SOS:', error));
+        });
+        return () => subscription.remove();
+    }, []);
 
     const refreshLocationStatus = useCallback(async () => {
         if (Platform.OS === 'web') {
@@ -124,14 +137,16 @@ export default function HomeScreen() {
                 await api.post('/admin/reports/sos/events', { usuario_id: user.id });
             }
 
-            if (!contacts.length) {
-                showFeedback('Nenhum contato cadastrado. Cadastre um contato de confiança antes de acionar o SOS.');
-                return;
-            }
-
             const telegramContacts = contacts.filter((contact) => contact.telegram_vinculado);
             if (!telegramContacts.length) {
-                showFeedback('Nenhum contato está vinculado ao Telegram. Abra Contatos, escolha um contato e toque em "Vincular ao Telegram".');
+                const testPhone = process.env.EXPO_PUBLIC_SOS_TEST_PHONE || '190';
+                const callMode = await callPhoneNumber(testPhone);
+                showFeedback(
+                    callMode === 'unavailable'
+                        ? 'Não foi possível iniciar a ligação de emergência neste dispositivo.'
+                        : 'Nenhum contato vinculado ao Telegram. A ligação de emergência foi iniciada.',
+                    callMode === 'unavailable' ? 'error' : 'success',
+                );
                 return;
             }
 
@@ -191,8 +206,19 @@ export default function HomeScreen() {
         React.useCallback(() => {
             let active = true;
 
-            AsyncStorage.getItem(PENDING_SOS_STORAGE_KEY)
-                .then(async (pending) => {
+            Promise.all([
+                AsyncStorage.getItem(PENDING_SOS_STORAGE_KEY),
+                AsyncStorage.getItem(ACTIVE_SOS_SESSION_KEY),
+            ])
+                .then(async ([pending, activeSession]) => {
+                    if (activeSession) {
+                        await AsyncStorage.removeItem(PENDING_SOS_STORAGE_KEY);
+                        if (active) {
+                            setSosCountdown(null);
+                            setSosDispatched(true);
+                        }
+                        return;
+                    }
                     if (pending !== 'true' || !active) return;
                     await AsyncStorage.removeItem(PENDING_SOS_STORAGE_KEY);
                     if (active && !route.params?.startSos) {

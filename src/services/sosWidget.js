@@ -1,5 +1,6 @@
 import React from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, ToastAndroid } from 'react-native';
+import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     canDrawOverlays,
@@ -11,16 +12,67 @@ import {
 } from 'expo-draw-over-apps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { navigationRef } from '../navigation/AppNavigator';
-import { ACTIVE_SOS_SESSION_KEY, stopSosTracking } from './sosTracking';
+import api from './api';
+import { ACTIVE_SOS_SESSION_KEY, startSosTracking, stopSosTracking } from './sosTracking';
 
 export const SOS_WIDGET_ID = 'guardia-sos';
 export const PENDING_SOS_STORAGE_KEY = '@guardia/pending-sos';
 export const SOS_WIDGET_ENABLED_KEY = '@guardia/sos-widget-enabled';
+let runtimeCustomization = null;
+
+async function activateSosFromWidget(user) {
+    const foregroundPermission = await Location.getForegroundPermissionsAsync();
+    const backgroundPermission = await Location.getBackgroundPermissionsAsync();
+    if (foregroundPermission.status !== 'granted' || backgroundPermission.status !== 'granted') {
+        throw new Error('Ative as permissoes de localizacao nas configuracoes do app.');
+    }
+
+    const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.BestForNavigation,
+    });
+    const { latitude, longitude, accuracy } = location.coords;
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        throw new Error('Nao foi possivel obter sua localizacao.');
+    }
+    if (accuracy && accuracy > 500) {
+        throw new Error('A localizacao esta imprecisa. Ative o GPS e tente novamente.');
+    }
+
+    const contactsResponse = await api.get(`/auth/contacts/${user.id}`);
+    const telegramContacts = (contactsResponse.data?.contacts || [])
+        .filter((contact) => contact.telegram_vinculado);
+    if (!telegramContacts.length) {
+        throw new Error('Vincule um contato ao Telegram antes de usar o widget SOS.');
+    }
+
+    await api.post('/admin/reports/sos/events', { usuario_id: user.id });
+    const sosResponse = await api.post('/auth/sos/telegram', {
+        usuario_id: user.id,
+        nome: user.nome || 'Usuaria',
+        latitude,
+        longitude,
+        accuracy,
+    });
+    const sessionId = sosResponse.data?.session_id;
+    if (!sessionId) throw new Error('O servidor nao confirmou o acionamento do SOS.');
+
+    try {
+        await startSosTracking(sessionId);
+    } catch (error) {
+        await api.post(`/auth/sos/telegram/${sessionId}/stop`).catch((stopError) => {
+            console.error('Erro ao cancelar SOS sem rastreamento:', stopError);
+        });
+        throw error;
+    }
+
+    await AsyncStorage.removeItem(PENDING_SOS_STORAGE_KEY);
+}
 
 export function SosBubble({ close }) {
     const [customization, setCustomization] = React.useState({});
     const [isActive, setIsActive] = React.useState(false);
+    const [isWorking, setIsWorking] = React.useState(false);
+    const actionLockRef = React.useRef(false);
 
     React.useEffect(() => {
         let mounted = true;
@@ -29,7 +81,7 @@ export function SosBubble({ close }) {
             AsyncStorage.getItem(ACTIVE_SOS_SESSION_KEY),
         ]).then(([savedCustomization, activeSession]) => {
             if (!mounted) return;
-            setCustomization(savedCustomization ? JSON.parse(savedCustomization) : {});
+            setCustomization(runtimeCustomization || (savedCustomization ? JSON.parse(savedCustomization) : {}));
             setIsActive(Boolean(activeSession));
         }).catch((error) => {
             console.error('Erro ao carregar personalização do widget:', error);
@@ -40,38 +92,48 @@ export function SosBubble({ close }) {
     }, []);
 
     const handlePress = async () => {
-        const activeSession = await AsyncStorage.getItem(ACTIVE_SOS_SESSION_KEY);
-        const pendingSos = await AsyncStorage.getItem(PENDING_SOS_STORAGE_KEY);
-        if (activeSession || pendingSos === 'true') {
-            try {
-                if (activeSession) {
-                    await stopSosTracking();
-                }
-            } catch (error) {
-                console.error('Erro ao encerrar SOS pelo widget:', error);
+        if (actionLockRef.current) return;
+        actionLockRef.current = true;
+        setIsWorking(true);
+        try {
+            const activeSession = await AsyncStorage.getItem(ACTIVE_SOS_SESSION_KEY);
+            const storedUser = await AsyncStorage.getItem('@guardia/auth_user');
+            const user = storedUser ? JSON.parse(storedUser) : null;
+            if (!user?.id) {
+                await AsyncStorage.multiRemove([SOS_WIDGET_ENABLED_KEY, PENDING_SOS_STORAGE_KEY]);
+                disableSosWidget();
+                await openApp();
+                return;
             }
-            await AsyncStorage.setItem(PENDING_SOS_STORAGE_KEY, 'false');
-            setIsActive(false);
-            if (navigationRef.isReady()) {
-                navigationRef.navigate('Home', { stopSos: true });
-            }
-            await openApp();
-            return;
-        }
 
-        await AsyncStorage.setItem(PENDING_SOS_STORAGE_KEY, 'true');
-        setIsActive(true);
-        if (navigationRef.isReady()) {
-            navigationRef.navigate('Home', { startSos: true });
+            if (activeSession) {
+                await stopSosTracking();
+                await AsyncStorage.removeItem(PENDING_SOS_STORAGE_KEY);
+                setIsActive(false);
+                ToastAndroid.show('SOS encerrado.', ToastAndroid.SHORT);
+                return;
+            }
+
+            await AsyncStorage.removeItem(PENDING_SOS_STORAGE_KEY);
+            await activateSosFromWidget(user);
+            setIsActive(true);
+            ToastAndroid.show('SOS ativado. Seus contatos receberam o alerta.', ToastAndroid.LONG);
+        } catch (error) {
+            setIsActive(false);
+            console.error('Erro ao processar toque no widget SOS:', error);
+            ToastAndroid.show(error.message || 'Nao foi possivel ativar o SOS.', ToastAndroid.LONG);
+        } finally {
+            actionLockRef.current = false;
+            setIsWorking(false);
         }
-        await openApp();
     };
 
     return (
         <Pressable
             style={[styles.bubble, isActive && styles.bubbleActive]}
             onPress={handlePress}
-            accessibilityLabel={isActive ? 'Cancelar SOS' : 'Ativar SOS'}
+            disabled={isWorking}
+            accessibilityLabel={isWorking ? 'SOS em andamento' : isActive ? 'Encerrar SOS' : 'Ativar SOS'}
         >
             {customization.widgetPhoto ? (
                 <Image source={{ uri: customization.widgetPhoto }} style={styles.widgetImage} />
@@ -114,8 +176,22 @@ export async function restoreSosWidget() {
     return true;
 }
 
+export async function refreshSosWidget(customization) {
+    if (Platform.OS !== 'android') return false;
+    runtimeCustomization = { ...customization };
+    setBubbleRendererForBubble(SOS_WIDGET_ID, SosBubble);
+    if (canDrawOverlays()) {
+        closeBubble(SOS_WIDGET_ID);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        await showBubble(SOS_WIDGET_ID, { edgeHideEnabled: true });
+        return true;
+    }
+    return false;
+}
+
 export function disableSosWidget() {
     if (Platform.OS === 'android') {
+        runtimeCustomization = null;
         closeBubble(SOS_WIDGET_ID);
     }
 }

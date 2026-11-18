@@ -67,13 +67,32 @@ export async function startSosTracking(sessionId) {
 
 export async function stopSosTracking() {
     const sessionId = await AsyncStorage.getItem(ACTIVE_SOS_SESSION_KEY);
-    const taskRegistered = await TaskManager.isTaskRegisteredAsync(SOS_LOCATION_TASK);
-    if (taskRegistered) {
-        await Location.stopLocationUpdatesAsync(SOS_LOCATION_TASK);
+    let stopError = null;
+
+    try {
+        if (Platform.OS !== 'web') {
+            const taskRegistered = await TaskManager.isTaskRegisteredAsync(SOS_LOCATION_TASK);
+            if (taskRegistered) {
+                await Location.stopLocationUpdatesAsync(SOS_LOCATION_TASK);
+            }
+        }
+    } catch (error) {
+        stopError = error;
+        console.error('Erro ao interromper o rastreamento SOS:', error);
+    } finally {
+        await AsyncStorage.removeItem(ACTIVE_SOS_SESSION_KEY);
     }
-    await AsyncStorage.removeItem(ACTIVE_SOS_SESSION_KEY);
 
     if (sessionId) {
-        await api.post(`/auth/sos/telegram/${sessionId}/stop`);
+        try {
+            await api.post(`/auth/sos/telegram/${sessionId}/stop`);
+        } catch (error) {
+            stopError = stopError || error;
+            console.error('Erro ao encerrar a sessão SOS:', error);
+        }
+    }
+
+    if (stopError) {
+        throw stopError;
     }
 }

@@ -4,12 +4,11 @@ import {
     FlatList,
     Modal,
     Pressable,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
     View,
-    KeyboardAvoidingView,
+    Keyboard,
     Platform,
     Share,
 } from 'react-native';
@@ -19,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import MobileFrame from '../../components/MobileFrame/MobileFrame';
 import BottomNav from '../../components/BottomNav/BottomNav';
+import KeyboardSheetModal from '../../components/KeyboardSheetModal/KeyboardSheetModal';
 import { useTheme } from '../../context/ThemeContext';
 import { useUserProfile } from '../../context/UserProfileContext';
 import api from '../../services/api';
@@ -210,8 +210,14 @@ export default function ContatosScreen() {
             relation: selectedContact.relation,
             phone: selectedContact.phone
         });
+        setRelationPickerVisible(false);
         setOptionsVisible(false);
         setTimeout(() => setEditVisible(true), 300);
+    };
+
+    const toggleRelationPicker = () => {
+        Keyboard.dismiss();
+        setRelationPickerVisible((visible) => !visible);
     };
 
     const openRemove = () => {
@@ -383,89 +389,89 @@ export default function ContatosScreen() {
                 <BottomNav active="Contatos" />
             </View>
 
-                <Modal visible={isPoliceEditVisible} transparent animationType="slide">
-                    <View style={styles.modalOverlay}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined} style={styles.keyboardAvoid}>
-                            <ScrollView contentContainerStyle={styles.formScrollContent} keyboardShouldPersistTaps="handled">
-                            <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
-                                <View style={styles.dragIndicator} />
-                                <Text style={[styles.modalTitle, { color: colors.text }]}>Editar contato de polícia</Text>
-                                <TextInput
-                                    value={policePhone}
-                                    onChangeText={(value) => setPolicePhone(phoneMask(value))}
-                                    style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]}
-                                    placeholder="Telefone"
-                                    placeholderTextColor={colors.muted}
-                                    keyboardType="phone-pad"
-                                />
-                                <View style={styles.modalActions}>
-                                    <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setPoliceEditVisible(false)}>
-                                        <Text style={styles.cancelBtnText}>Cancelar</Text>
-                                    </Pressable>
-                                    <Pressable style={styles.primaryBtn} onPress={savePoliceContact}>
-                                        <Text style={styles.primaryBtnText}>Salvar</Text>
-                                    </Pressable>
-                                </View>
-                            </View>
-                                </ScrollView>
-                        </KeyboardAvoidingView>
-                    </View>
-                </Modal>
-
-                {/* Modal: Novo Contato */}
-            <Modal visible={isAddVisible} transparent animationType="slide" onRequestClose={() => setAddVisible(false)}>
-                <View style={styles.modalOverlay}>
-                    <Pressable style={styles.modalBackdrop} onPress={() => setAddVisible(false)} />
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined} style={styles.keyboardAvoid}>
-                        <ScrollView contentContainerStyle={styles.formScrollContent} keyboardShouldPersistTaps="handled">
-                        <View
-                            style={[styles.bottomSheet, { backgroundColor: colors.surface }]}
-                            onStartShouldSetResponder={() => true}
-                        >
-                            <View style={styles.dragIndicator} />
-                            <Text style={[styles.modalTitle, { color: colors.text }]}>Novo contato de confiança</Text>
-
-                            <TextInput value={formData.name} onChangeText={(name) => setFormData({ ...formData, name })} style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Nome completo *" placeholderTextColor={colors.muted} />
-                            <Pressable
-                                style={[styles.input, styles.selectInput, { backgroundColor: colors.input, borderColor: colors.border }]}
-                                onPress={() => setRelationPickerVisible((visible) => !visible)}
-                            >
-                                <Text style={{ color: formData.relation ? colors.text : colors.muted }}>
-                                    {formData.relation || 'Selecione a relação *'}
-                                </Text>
-                                <MaterialCommunityIcons name="chevron-down" size={20} color={colors.muted} />
-                            </Pressable>
-                            {isRelationPickerVisible && (
-                                <View style={[styles.relationOptions, { backgroundColor: colors.input, borderColor: colors.border }]}>
-                                    {RELATION_OPTIONS.map((relation) => (
-                                        <Pressable
-                                            key={relation}
-                                            style={[styles.relationOption, { borderBottomColor: colors.border }]}
-                                            onPress={() => {
-                                                setFormData({ ...formData, relation });
-                                                setRelationPickerVisible(false);
-                                            }}
-                                        >
-                                            <Text style={{ color: colors.text }}>{relation}</Text>
-                                        </Pressable>
-                                    ))}
-                                </View>
-                            )}
-                            <TextInput value={formData.phone} onChangeText={(phone) => setFormData({ ...formData, phone: phoneMask(phone) })} style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Telefone *" placeholderTextColor={colors.muted} keyboardType="phone-pad" />
-
-                            <View style={styles.modalActions}>
-                                <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setAddVisible(false)}>
-                                    <Text style={styles.cancelBtnText}>Cancelar</Text>
-                                </Pressable>
-                                <Pressable style={[styles.primaryBtn, isSaving && styles.disabledBtn]} onPress={() => saveContact()} disabled={isSaving}>
-                                    <Text style={styles.primaryBtnText}>{isSaving ? 'Salvando...' : 'Adicionar'}</Text>
-                                </Pressable>
-                            </View>
-                        </View>
-                        </ScrollView>
-                    </KeyboardAvoidingView>
+            {/* Modal: Editar contato de polícia */}
+            <KeyboardSheetModal
+                visible={isPoliceEditVisible}
+                onClose={() => setPoliceEditVisible(false)}
+                sheetStyle={{ backgroundColor: colors.surface }}
+            >
+                <View style={styles.dragIndicator} />
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Editar contato de polícia</Text>
+                <TextInput
+                    value={policePhone}
+                    onChangeText={(value) => setPolicePhone(phoneMask(value))}
+                    style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]}
+                    placeholder="Telefone"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="phone-pad"
+                />
+                <View style={styles.modalActions}>
+                    <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setPoliceEditVisible(false)}>
+                        <Text style={styles.cancelBtnText}>Cancelar</Text>
+                    </Pressable>
+                    <Pressable style={styles.primaryBtn} onPress={savePoliceContact}>
+                        <Text style={styles.primaryBtnText}>Salvar</Text>
+                    </Pressable>
                 </View>
-            </Modal>
+            </KeyboardSheetModal>
+
+            {/* Modal: Novo Contato */}
+            <KeyboardSheetModal
+                visible={isAddVisible}
+                onClose={() => setAddVisible(false)}
+                sheetStyle={{ backgroundColor: colors.surface }}
+            >
+                <View style={styles.dragIndicator} />
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Novo contato de confiança</Text>
+
+                <TextInput
+                    value={formData.name}
+                    onChangeText={(name) => setFormData({ ...formData, name })}
+                    style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Nome completo *"
+                    placeholderTextColor={colors.muted}
+                />
+                <Pressable
+                    style={[styles.input, styles.selectInput, { backgroundColor: colors.input, borderColor: colors.border }]}
+                    onPress={toggleRelationPicker}
+                >
+                    <Text style={{ color: formData.relation ? colors.text : colors.muted }}>
+                        {formData.relation || 'Selecione a relação *'}
+                    </Text>
+                    <MaterialCommunityIcons name="chevron-down" size={20} color={colors.muted} />
+                </Pressable>
+                {isRelationPickerVisible && (
+                    <View style={[styles.relationOptions, { backgroundColor: colors.input, borderColor: colors.border }]}>
+                        {RELATION_OPTIONS.map((relation) => (
+                            <Pressable
+                                key={relation}
+                                style={[styles.relationOption, { borderBottomColor: colors.border }]}
+                                onPress={() => {
+                                    setFormData({ ...formData, relation });
+                                    setRelationPickerVisible(false);
+                                }}
+                            >
+                                <Text style={{ color: colors.text }}>{relation}</Text>
+                            </Pressable>
+                        ))}
+                    </View>
+                )}
+                <TextInput
+                    value={formData.phone}
+                    onChangeText={(phone) => setFormData({ ...formData, phone: phoneMask(phone) })}
+                    style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Telefone *"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="phone-pad"
+                />
+
+                <View style={styles.modalActions}>
+                    <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setAddVisible(false)}>
+                        <Text style={styles.cancelBtnText}>Cancelar</Text>
+                    </Pressable>
+                    <Pressable style={[styles.primaryBtn, isSaving && styles.disabledBtn]} onPress={() => saveContact()} disabled={isSaving}>
+                        <Text style={styles.primaryBtnText}>{isSaving ? 'Salvando...' : 'Adicionar'}</Text>
+                    </Pressable>
+                </View>
+            </KeyboardSheetModal>
 
             {/* Modal: Opções do Contato */}
             <Modal visible={isOptionsVisible} transparent animationType="none" onRequestClose={closeOptions}>
@@ -516,60 +522,62 @@ export default function ContatosScreen() {
             </Modal>
 
             {/* Modal: Editar Contato */}
-            <Modal visible={isEditVisible} transparent animationType="slide">
-                <View style={styles.modalOverlay}>
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined} style={styles.keyboardAvoid}>
-                        <ScrollView contentContainerStyle={styles.formScrollContent} keyboardShouldPersistTaps="handled">
-                        <View style={[styles.bottomSheet, { backgroundColor: colors.surface }]}>
-                            <View style={styles.dragIndicator} />
-                            <Text style={[styles.modalTitle, { color: colors.text }]}>Editar contato</Text>
+            <KeyboardSheetModal
+                visible={isEditVisible}
+                onClose={() => setEditVisible(false)}
+                sheetStyle={{ backgroundColor: colors.surface }}
+            >
+                <View style={styles.dragIndicator} />
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Editar contato</Text>
 
-                            <TextInput
-                                style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]}
-                                value={formData.name}
-                                onChangeText={(t) => setFormData({ ...formData, name: t })}
-                                placeholderTextColor={colors.muted}
-                            />
+                <TextInput
+                    value={formData.name}
+                    onChangeText={(name) => setFormData({ ...formData, name })}
+                    style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Nome completo *"
+                    placeholderTextColor={colors.muted}
+                />
+                <Pressable
+                    style={[styles.input, styles.selectInput, { backgroundColor: colors.input, borderColor: colors.border }]}
+                    onPress={toggleRelationPicker}
+                >
+                    <Text style={{ color: formData.relation ? colors.text : colors.muted }}>
+                        {formData.relation || 'Selecione a relação *'}
+                    </Text>
+                    <MaterialCommunityIcons name="chevron-down" size={20} color={colors.muted} />
+                </Pressable>
+                {isRelationPickerVisible && (
+                    <View style={[styles.relationOptions, { backgroundColor: colors.input, borderColor: colors.border }]}>
+                        {RELATION_OPTIONS.map((relation) => (
                             <Pressable
-                                style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]}
-                                onPress={() => setRelationPickerVisible((visible) => !visible)}
+                                key={relation}
+                                style={[styles.relationOption, { borderBottomColor: colors.border }]}
+                                onPress={() => {
+                                    setFormData({ ...formData, relation });
+                                    setRelationPickerVisible(false);
+                                }}
                             >
-                                <Text style={{ color: formData.relation ? colors.text : colors.muted }}>{formData.relation || 'Selecione a relação *'}</Text>
-                                <MaterialCommunityIcons name="chevron-down" size={20} color={colors.muted} />
+                                <Text style={{ color: colors.text }}>{relation}</Text>
                             </Pressable>
-                            {isRelationPickerVisible && (
-                                <View style={[styles.relationOptions, { backgroundColor: colors.input, borderColor: colors.border }]}>
-                                    {RELATION_OPTIONS.map((relation) => (
-                                        <Pressable key={relation} style={[styles.relationOption, { borderBottomColor: colors.border }]} onPress={() => {
-                                            setFormData({ ...formData, relation });
-                                            setRelationPickerVisible(false);
-                                        }}>
-                                            <Text style={{ color: colors.text }}>{relation}</Text>
-                                        </Pressable>
-                                    ))}
-                                </View>
-                            )}
-                            <TextInput
-                                style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]}
-                                value={formData.phone}
-                                onChangeText={(t) => setFormData({ ...formData, phone: phoneMask(t) })}
-                                placeholderTextColor={colors.muted}
-                                keyboardType="phone-pad"
-                            />
+                        ))}
+                    </View>
+                )}
+                <TextInput
+                    value={formData.phone}
+                    onChangeText={(phone) => setFormData({ ...formData, phone: phoneMask(phone) })}
+                    style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]} placeholder="Telefone *"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="phone-pad"
+                />
 
-                            <View style={styles.modalActions}>
-                                <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setEditVisible(false)}>
-                                    <Text style={styles.cancelBtnText}>Cancelar</Text>
-                                </Pressable>
-                                <Pressable style={[styles.primaryBtn, isSaving && styles.disabledBtn]} onPress={() => saveContact(true)} disabled={isSaving}>
-                                    <Text style={styles.primaryBtnText}>{isSaving ? 'Salvando...' : 'Salvar'}</Text>
-                                </Pressable>
-                            </View>
-                        </View>
-                        </ScrollView>
-                    </KeyboardAvoidingView>
+                <View style={styles.modalActions}>
+                    <Pressable style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setEditVisible(false)}>
+                        <Text style={styles.cancelBtnText}>Cancelar</Text>
+                    </Pressable>
+                    <Pressable style={[styles.primaryBtn, isSaving && styles.disabledBtn]} onPress={() => saveContact(true)} disabled={isSaving}>
+                        <Text style={styles.primaryBtnText}>{isSaving ? 'Salvando...' : 'Salvar'}</Text>
+                    </Pressable>
                 </View>
-            </Modal>
+            </KeyboardSheetModal>
 
             {/* Modal: Remover Contato */}
             <Modal visible={isRemoveVisible} transparent animationType="fade">
@@ -753,24 +761,12 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
         alignItems: 'center',
     },
-    modalBackdrop: {
-        ...StyleSheet.absoluteFillObject,
-    },
     modalOverlayCenter: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.7)',
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: 24,
-    },
-    keyboardAvoid: {
-        width: '100%',
-        alignItems: 'center',
-    },
-    formScrollContent: {
-        width: '100%',
-        alignItems: 'center',
-        paddingBottom: 24,
     },
     bottomSheet: {
         backgroundColor: '#1C1C1E',

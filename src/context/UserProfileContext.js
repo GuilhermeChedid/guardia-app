@@ -35,6 +35,7 @@ export function UserProfileProvider({ children }) {
             const user = storedUser ? JSON.parse(storedUser) : null;
 
             if (!user?.id) {
+                setProfile(DEFAULT_PROFILE);
                 return;
             }
 
@@ -74,6 +75,10 @@ export function UserProfileProvider({ children }) {
         }
     }, []);
 
+    const clearProfile = useCallback(() => {
+        setProfile(DEFAULT_PROFILE);
+    }, []);
+
     useEffect(() => {
         refreshProfile();
     }, [refreshProfile]);
@@ -86,7 +91,7 @@ export function UserProfileProvider({ children }) {
         });
     };
 
-    const value = useMemo(() => ({ profile, updateProfile, refreshProfile }), [profile, refreshProfile]);
+    const value = useMemo(() => ({ profile, updateProfile, refreshProfile, clearProfile }), [profile, refreshProfile, clearProfile]);
 
     return <UserProfileContext.Provider value={value}>{children}</UserProfileContext.Provider>;
 }

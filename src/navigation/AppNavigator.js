@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { AppState } from 'react-native';
-import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -12,9 +12,12 @@ import ProvasScreen from '../telas/Provas/provas';
 import InformacoesScreen from '../telas/Support/InformacoesScreen';
 import PerfilScreen from '../telas/Perfil/Perfil';
 import AdminScreen from '../telas/adm/adm';
+import { disableSosWidget } from '../services/sosWidget';
+import { stopSosTracking } from '../services/sosTracking';
+import { navigationRef } from './navigationRef';
 
 const Stack = createStackNavigator();
-export const navigationRef = createNavigationContainerRef();
+export { navigationRef };
 const AUTH_USER_KEY = '@guardia/auth_user';
 const SESSION_DURATION_MS = 10 * 60 * 1000;
 
@@ -28,7 +31,14 @@ export default function AppNavigator() {
                 const storedUser = await AsyncStorage.getItem(AUTH_USER_KEY);
                 const user = storedUser ? JSON.parse(storedUser) : null;
                 if (!user?.loginAt || Date.now() - user.loginAt < SESSION_DURATION_MS) return;
-                await AsyncStorage.removeItem(AUTH_USER_KEY);
+                try {
+                    await stopSosTracking();
+                } catch (error) {
+                    console.error('Não foi possível encerrar completamente o SOS expirado:', error);
+                } finally {
+                    disableSosWidget();
+                    await AsyncStorage.multiRemove([AUTH_USER_KEY, '@guardia/pending-sos']);
+                }
                 if (navigationRef.isReady() && navigationRef.getCurrentRoute()?.name !== 'Login') {
                     navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] });
                 }

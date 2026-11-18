@@ -21,6 +21,7 @@ import { POST_CATEGORIES } from '../../constants/posts';
 import { usePosts } from '../../context/PostsContext';
 import { useUserProfile } from '../../context/UserProfileContext';
 import { formatDisplayName } from '../../utils/nameValidation';
+import { renderMarkdownText } from '../../utils/postText';
 
 const logoGuardia = require('../../assets/imagens/logo_guardia.png');
 
@@ -75,7 +76,7 @@ function PostCard({ post, onToggleLike, onPress }) {
                 <Text style={[styles.cardTime, { color: colors.muted }]}>{post.time}</Text>
             </View>
             <Text style={[styles.cardTitle, { color: colors.text }]}>{post.title}</Text>
-            <Text style={[styles.cardExcerpt, { color: colors.muted }]}>{post.excerpt}</Text>
+            {renderMarkdownText(post.excerpt, [styles.cardExcerpt, { color: colors.muted }])}
 
             {/* Container da imagem com o coração flutuante no centro */}
             <View style={styles.imageContainer}>
@@ -318,7 +319,9 @@ export default function InformacoesScreen() {
                             </View>
 
                             {detailPost.paragraphs.map((paragraph, idx) => (
-                                <Text key={idx} style={[styles.detailParagraph, { color: colors.text }]}>{paragraph}</Text>
+                                <React.Fragment key={idx}>
+                                    {renderMarkdownText(paragraph, [styles.detailParagraph, { color: colors.text }])}
+                                </React.Fragment>
                             ))}
 
                             {/* Imagem de detalhes com animação de coração */}

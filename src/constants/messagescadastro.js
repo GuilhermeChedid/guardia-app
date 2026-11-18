@@ -1,5 +1,5 @@
 export const MESSAGES = {
-    MSG01: 'Conta criada com sucesso',
+    MSG01: 'Conta criada com sucesso.',
     MSG02: 'Preencha todos os campos obrigatórios',
     MSG03: 'Você deve aceitar os termos de uso',
     MSG04: 'E-mail inválido',
